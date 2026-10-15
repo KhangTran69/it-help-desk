@@ -1,0 +1,8 @@
+target/
+.env
+*.log
+.idea/
+.vscode/
+data/
+resume_render*/
+edit_resume.py

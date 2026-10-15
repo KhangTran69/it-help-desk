@@ -1,0 +1,1 @@
+package com.example.helpdesk.repo; import com.example.helpdesk.model.*; import org.springframework.data.jpa.repository.*; import java.util.*; public interface AssetRepository extends JpaRepository<Asset,Long>{List<Asset> findByAssignedUser(User u); boolean existsByAssetTag(String tag);}

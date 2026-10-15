@@ -1,0 +1,1 @@
+package com.example.helpdesk.repo; import com.example.helpdesk.model.*; import org.springframework.data.jpa.repository.JpaRepository; import java.util.*; public interface TicketHistoryRepository extends JpaRepository<TicketHistory,Long>{List<TicketHistory> findByTicketOrderByCreatedAtDesc(Ticket t);}
