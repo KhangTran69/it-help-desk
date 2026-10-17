@@ -1,0 +1,61 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>My Tickets | IT Helpdesk</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<aside>
+  <h2 class="brand"><i class="brand-mark"></i><span>IT Helpdesk</span></h2>
+  <nav>
+    <a href="/my-tickets" class="active"><b class="nav-icon">▣</b><span>My Tickets</span></a>
+    <a href="/tickets/new"><b class="nav-icon">＋</b><span>Create Ticket</span></a>
+  </nav>
+  <form class="signout" method="post" action="/logout">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+    <button class="link"><b class="nav-icon">↪</b><span>Sign out</span></button>
+  </form>
+</aside>
+<main class="content">
+  <div class="topbar">
+    <div class="profile" th:if="${currentUser != null}">
+      <span class="avatar" th:text="${currentUser.initials}">U</span>
+      <span th:text="${currentUser.fullName}">Employee</span>
+    </div>
+  </div>
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">EMPLOYEE SUPPORT</p>
+      <h1>My Tickets</h1>
+      <p class="muted">Track requests you submitted and see the latest status.</p>
+    </div>
+    <a class="button" href="/tickets/new">＋ Create ticket</a>
+  </div>
+  <div th:if="${success}" class="notice success" role="status" th:text="${success}"></div>
+  <div class="table-wrap" th:if="${!#lists.isEmpty(tickets)}">
+    <table class="employee-ticket-table">
+      <thead><tr><th>Reference</th><th>Subject</th><th>Submitted</th><th>Last updated</th><th>Priority</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      <tr th:each="ticket : ${tickets}">
+        <td th:text="|#${ticket.id}|">#1</td>
+        <td class="ticket-subject" th:text="${ticket.title}">Unable to connect</td>
+        <td th:text="${#temporals.format(ticket.createdAt, 'MMM d, yyyy')}">Oct 17, 2026</td>
+        <td th:text="${#temporals.format(ticket.updatedAt, 'MMM d, yyyy h:mm a')}">Oct 17, 2026</td>
+        <td><span class="badge" th:classappend="${ticket.priority}" th:text="${ticket.priority}">MEDIUM</span></td>
+        <td><span class="badge" th:classappend="${ticket.status}" th:text="${#strings.replace(ticket.status.name(), '_', ' ')}">OPEN</span></td>
+        <td><a class="button secondary compact-button" th:href="@{/my-tickets/{id}(id=${ticket.id})}">View progress</a></td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card empty-state" th:if="${#lists.isEmpty(tickets)}">
+    <div class="empty-icon" aria-hidden="true">✓</div>
+    <h2>No tickets yet</h2>
+    <p class="muted">When you submit a support request, you can follow its progress here.</p>
+    <a class="button" href="/tickets/new">Create your first ticket</a>
+  </div>
+</main>
+</body>
+</html>

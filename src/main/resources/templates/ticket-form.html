@@ -1,1 +1,89 @@
-<!doctype html><html xmlns:th="http://www.thymeleaf.org"><head><title>New ticket</title><link rel="stylesheet" href="/css/app.css"></head><body><main class="content narrow"><a href="/tickets">← Back</a><h1>Create a support ticket</h1><form method="post" action="/tickets" class="card"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><label>Title<input name="title" required maxlength="160"></label><label>Description<textarea name="description" required rows="6"></textarea></label><label>Category<select name="category"><option th:each="c:${categories}" th:value="${c}" th:text="${c}"></option></select></label><label>Priority<select name="priority"><option th:each="p:${priorities}" th:value="${p}" th:text="${p}"></option></select></label><button>Submit ticket</button></form></main></body></html>
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Create Support Ticket | IT Helpdesk</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<aside>
+  <h2 class="brand"><i class="brand-mark"></i><span>IT Helpdesk</span></h2>
+  <nav th:if="${isTechnician}">
+    <a href="/"><b class="nav-icon">⌂</b><span>Dashboard</span></a>
+    <a href="/tickets"><b class="nav-icon">▣</b><span>Tickets</span></a>
+    <a href="/assets"><b class="nav-icon">▤</b><span>Assets</span></a>
+  </nav>
+  <nav th:unless="${isTechnician}">
+    <a href="/my-tickets"><b class="nav-icon">▣</b><span>My Tickets</span></a>
+    <a href="/tickets/new" class="active"><b class="nav-icon">＋</b><span>Create Ticket</span></a>
+  </nav>
+  <form class="signout" method="post" action="/logout">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+    <button class="link"><b class="nav-icon">↪</b><span>Sign out</span></button>
+  </form>
+</aside>
+<main class="content narrow">
+  <div class="topbar">
+    <div class="profile" th:if="${currentUser != null}">
+      <span class="avatar" th:text="${currentUser.initials}">KT</span>
+      <span th:text="${currentUser.fullName} + ' (' + ${currentUser.role} + ')'">User</span>
+    </div>
+  </div>
+
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">NEW SUPPORT REQUEST</p>
+      <h1>Submit a Support Ticket</h1>
+      <p class="muted">Describe your issue in detail. An IT technician will review and assist.</p>
+    </div>
+  </div>
+
+  <div th:if="${success}" class="notice success" role="status">
+    <span th:text="${success}"></span>
+    <a href="/my-tickets" class="notice-link" th:if="${submittedTicketId != null}">Track your ticket</a>
+  </div>
+  <div th:if="${error}" class="notice error" th:text="${error}"></div>
+
+  <form method="post" action="/tickets" th:object="${form}" class="card form-card">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+    <label>
+      Subject / Title <span style="color:#dc2626">*</span>
+      <input type="text" th:field="*{title}" placeholder="e.g., Cannot connect to VPN server from remote office" maxlength="160" required
+             th:classappend="${#fields.hasErrors('title')} ? 'input-error'">
+      <span th:if="${#fields.hasErrors('title')}" th:errors="*{title}" class="field-error"></span>
+    </label>
+
+    <label>
+      Detailed Description <span style="color:#dc2626">*</span>
+      <textarea th:field="*{description}" rows="6" placeholder="Provide error messages, steps to reproduce, and any equipment tags..." required
+                th:classappend="${#fields.hasErrors('description')} ? 'input-error'"></textarea>
+      <span th:if="${#fields.hasErrors('description')}" th:errors="*{description}" class="field-error"></span>
+    </label>
+
+    <div class="form-grid">
+      <label>
+        Category <span style="color:#dc2626">*</span>
+        <select th:field="*{category}" required th:classappend="${#fields.hasErrors('category')} ? 'input-error'">
+          <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"></option>
+        </select>
+        <span th:if="${#fields.hasErrors('category')}" th:errors="*{category}" class="field-error"></span>
+      </label>
+
+      <label>
+        Priority <span style="color:#dc2626">*</span>
+        <select th:field="*{priority}" required th:classappend="${#fields.hasErrors('priority')} ? 'input-error'">
+          <option th:each="p : ${priorities}" th:value="${p}" th:text="${p}"></option>
+        </select>
+        <span th:if="${#fields.hasErrors('priority')}" th:errors="*{priority}" class="field-error"></span>
+      </label>
+    </div>
+
+    <div class="actions">
+      <button type="submit">Submit Ticket</button>
+    </div>
+  </form>
+</main>
+</body>
+</html>

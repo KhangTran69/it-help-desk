@@ -1,1 +1,115 @@
-<!doctype html><html xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Assets | IT Helpdesk</title><link rel="stylesheet" href="/css/app.css"></head><body><aside><h2 class="brand"><i class="brand-mark"></i><span>IT Helpdesk</span></h2><nav><a href="/"><b class="nav-icon">⌂</b><span>Dashboard</span></a><a href="/tickets"><b class="nav-icon">▣</b><span>Tickets</span></a><a class="active" href="/assets"><b class="nav-icon">▤</b><span>Assets</span></a></nav><form class="signout" method="post" action="/logout"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><button class="link"><b class="nav-icon">↪</b><span>Sign out</span></button></form></aside><main class="content"><div class="topbar"><span>Operations workspace</span><div class="profile"><span class="avatar">KT</span><span>IT Helpdesk</span></div></div><div class="page-head"><div><p class="eyebrow">INVENTORY</p><h1>Asset inventory</h1><p class="muted">Manage company equipment and assigned devices.</p></div><a class="button" href="/assets/new">＋ Add asset</a></div><div class="toolbar"><form class="search" method="get"><input name="q" placeholder="Search asset tag or equipment" th:value="${q}"><button>Search</button></form><select class="filter"><option>Status: All</option><option>Available</option><option>Assigned</option><option>Retired</option></select></div><div class="table-wrap"><table><thead><tr><th>Asset tag</th><th>Equipment</th><th>Category</th><th>Manufacturer</th><th>Status</th><th>Action</th></tr></thead><tbody><tr th:each="a:${assets}"><td><strong th:text="${a.assetTag}"></strong></td><td th:text="${a.name}"></td><td th:text="${a.category}"></td><td th:text="${a.manufacturer ?: '—'}"></td><td><span class="badge" th:text="${a.status}"></span></td><td><a class="button secondary" href="/assets">View</a></td></tr><tr th:if="${#lists.isEmpty(assets)}"><td colspan="6" class="empty">No assets found. Add equipment to build your inventory.</td></tr></tbody></table></div></main></body></html>
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Assets Inventory | IT Helpdesk</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<aside>
+  <h2 class="brand"><i class="brand-mark"></i><span>IT Helpdesk</span></h2>
+  <nav>
+    <a href="/"><b class="nav-icon">⌂</b><span>Dashboard</span></a>
+    <a href="/tickets"><b class="nav-icon">▣</b><span>Tickets</span></a>
+    <a class="active" href="/assets"><b class="nav-icon">▤</b><span>Assets</span></a>
+  </nav>
+  <form class="signout" method="post" action="/logout">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+    <button class="link"><b class="nav-icon">↪</b><span>Sign out</span></button>
+  </form>
+</aside>
+<main class="content">
+  <div class="topbar">
+    <span>Operations workspace</span>
+    <div class="profile" th:if="${currentUser != null}">
+      <span class="avatar" th:text="${currentUser.initials}">KT</span>
+      <span th:text="${currentUser.fullName} + ' (' + ${currentUser.role} + ')'">IT Helpdesk</span>
+    </div>
+  </div>
+
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">INVENTORY</p>
+      <h1>Asset inventory</h1>
+      <p class="muted">Manage company hardware, devices, assignments, and status.</p>
+    </div>
+    <a th:if="${isTechnician}" class="button" href="/assets/new">＋ Add asset</a>
+  </div>
+
+  <div th:if="${success}" class="notice success" th:text="${success}"></div>
+  <div th:if="${error}" class="notice error" th:text="${error}"></div>
+
+  <div class="toolbar card" style="padding: 16px; margin-bottom: 20px;">
+    <form class="filter-form" method="get" action="/assets">
+      <input name="q" placeholder="Search by asset tag, name, or manufacturer" th:value="${q}">
+
+      <select name="status" aria-label="Status" onchange="this.form.submit()">
+        <option value="">Status: All</option>
+        <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${s == selectedStatus}"></option>
+      </select>
+
+      <select name="category" aria-label="Category" onchange="this.form.submit()">
+        <option value="">Category: All</option>
+        <option th:each="c : ${categories}" th:value="${c}" th:text="${c}" th:selected="${c == selectedCategory}"></option>
+      </select>
+
+      <button type="submit">Filter</button>
+      <a th:if="${q != null or selectedStatus != null or selectedCategory != null}" href="/assets" class="button secondary" style="padding: 11px 14px;">Reset</a>
+    </form>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+      <tr>
+        <th>Asset Tag</th>
+        <th>Equipment Name</th>
+        <th>Category</th>
+        <th>Manufacturer</th>
+        <th>Serial #</th>
+        <th>Status</th>
+        <th>Assigned To</th>
+        <th th:if="${isTechnician}" style="text-align: right;">Actions</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="a : ${assets}">
+        <td><strong th:text="${a.assetTag}" style="color:var(--teal-dark);">AST-0001</strong></td>
+        <td th:text="${a.name}" style="font-weight:600;">Name</td>
+        <td th:text="${a.category}">Category</td>
+        <td th:text="${a.manufacturer ?: '—'}">Manufacturer</td>
+        <td th:text="${a.serialNumber ?: '—'}" style="font-family: monospace; font-size:12px;">Serial</td>
+        <td><span class="badge" th:classappend="' ' + ${a.status}" th:text="${a.status}">Status</span></td>
+        <td>
+          <span th:if="${a.assignedUser != null}" th:text="${a.assignedUser.fullName}">User</span>
+          <span th:if="${a.assignedUser == null}" class="badge UNASSIGNED">Unassigned</span>
+        </td>
+        <td th:if="${isTechnician}" style="text-align: right;">
+          <div style="display:inline-flex; gap:6px;">
+            <a class="button secondary" style="padding:6px 12px; font-size:12px;" th:href="@{'/assets/' + ${a.id} + '/edit'}">✎ Edit</a>
+            <form th:if="${a.assignedUser != null}" method="post" th:action="@{'/assets/' + ${a.id} + '/unassign'}" style="display:inline;"
+                  th:data-assigned="${a.assignedUser.fullName}" onsubmit="return confirm('Unassign this asset from ' + this.dataset.assigned + '?');">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+              <button type="submit" class="button secondary" style="padding:6px 12px; font-size:12px; color:#dc2626; border-color:#fca5a5;">Unassign</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(assets)}">
+        <td th:colspan="${isTechnician ? 8 : 7}" class="empty">
+          <p style="font-size:16px; font-weight:600; margin-bottom:6px;">No assets found</p>
+          <p class="muted" style="margin:0;">No equipment matches your filter criteria.</p>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <span th:text="${#lists.size(assets) + ' asset(s) registered'}">0 asset(s)</span>
+    <span class="muted">IT Asset Lifecycle Management</span>
+  </div>
+</main>
+</body>
+</html>

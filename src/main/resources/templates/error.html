@@ -1,0 +1,33 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title th:text="${error ?: 'Error'} + ' | IT Helpdesk'">Error | IT Helpdesk</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<aside>
+  <h2 class="brand"><i class="brand-mark"></i><span>IT Helpdesk</span></h2>
+  <nav th:if="${isTechnician}">
+    <a href="/"><b class="nav-icon">⌂</b><span>Dashboard</span></a>
+    <a href="/tickets"><b class="nav-icon">▣</b><span>Tickets</span></a>
+    <a href="/assets"><b class="nav-icon">▤</b><span>Assets</span></a>
+  </nav>
+  <nav th:unless="${isTechnician}"><a href="/tickets/new"><b class="nav-icon">＋</b><span>Create ticket</span></a></nav>
+</aside>
+<main class="content narrow">
+  <div class="page-head" style="margin-top: 40px;">
+    <div>
+      <p class="eyebrow" th:text="'HTTP ' + ${status ?: 500}">ERROR</p>
+      <h1 th:text="${error ?: 'Application Error'}">Error</h1>
+      <p class="muted" th:text="${message ?: 'Something went wrong.'}">Something went wrong.</p>
+    </div>
+  </div>
+  <div class="card">
+    <p>Please check the link or navigate back to your workspace.</p>
+    <div class="actions"><a class="button" th:href="${isTechnician} ? '/tickets' : '/tickets/new'" th:text="${isTechnician} ? 'Back to tickets' : 'Return to create ticket'">Return</a></div>
+  </div>
+</main>
+</body>
+</html>

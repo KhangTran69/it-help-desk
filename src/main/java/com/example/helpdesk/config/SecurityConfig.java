@@ -1,3 +1,61 @@
 package com.example.helpdesk.config;
-import com.example.helpdesk.repo.UserRepository; import org.springframework.context.annotation.*; import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity; import org.springframework.security.config.annotation.web.builders.HttpSecurity; import org.springframework.security.core.userdetails.*; import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; import org.springframework.security.crypto.password.PasswordEncoder; import org.springframework.security.web.SecurityFilterChain;
-@Configuration @EnableMethodSecurity public class SecurityConfig { @Bean PasswordEncoder passwordEncoder(){return new BCryptPasswordEncoder();} @Bean UserDetailsService userDetailsService(UserRepository repo){return username->repo.findByUsername(username).map(u->User.withUsername(u.getUsername()).password(u.getPassword()).roles(u.getRole().name()).build()).orElseThrow(()->new UsernameNotFoundException(username));} @Bean SecurityFilterChain filterChain(HttpSecurity http)throws Exception{return http.authorizeHttpRequests(a->a.requestMatchers("/css/**","/login","/register").permitAll().anyRequest().authenticated()).formLogin(f->f.loginPage("/login").defaultSuccessUrl("/",true).permitAll()).logout(l->l.logoutSuccessUrl("/login?logout")).build();} }
+
+import com.example.helpdesk.repo.UserRepository;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@EnableMethodSecurity
+public class SecurityConfig {
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public UserDetailsService userDetailsService(UserRepository repo) {
+        return username -> repo.findByUsername(username)
+                .map(u -> User.withUsername(u.getUsername())
+                        .password(u.getPassword())
+                        .roles(u.getRole().name())
+                        .build())
+                .orElseThrow(() -> new UsernameNotFoundException(username));
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        return http
+                .authorizeHttpRequests(a -> a
+                        .requestMatchers("/css/**", "/login", "/register", "/error").permitAll()
+                        // The dashboard and asset administration are technician-only areas.
+                        .requestMatchers("/assets", "/assets/**").hasRole("TECHNICIAN")
+                        // Employee tracking pages are scoped again to the authenticated owner in TicketService.
+                        .requestMatchers("/my-tickets", "/my-tickets/**").hasRole("EMPLOYEE")
+                        // Employees may submit tickets, but cannot browse or manage the queue.
+                        .requestMatchers(HttpMethod.GET, "/tickets/new").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/tickets").authenticated()
+                        .requestMatchers("/tickets", "/tickets/**").hasRole("TECHNICIAN")
+                        .anyRequest().authenticated()
+                )
+                .formLogin(f -> f
+                        .loginPage("/login")
+                        .defaultSuccessUrl("/", true)
+                        .permitAll()
+                )
+                .logout(l -> l
+                        .logoutSuccessUrl("/login?logout")
+                )
+                .exceptionHandling(e -> e.accessDeniedPage("/access-denied"))
+                .build();
+    }
+}
