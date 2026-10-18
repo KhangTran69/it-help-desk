@@ -2,6 +2,7 @@ package com.example.helpdesk.service;
 
 import com.example.helpdesk.dto.AssetForm;
 import com.example.helpdesk.exception.ResourceNotFoundException;
+import com.example.helpdesk.metrics.BusinessMetrics;
 import com.example.helpdesk.model.Asset;
 import com.example.helpdesk.model.AssetStatus;
 import com.example.helpdesk.model.Role;
@@ -9,6 +10,8 @@ import com.example.helpdesk.model.User;
 import com.example.helpdesk.repo.AssetRepository;
 import com.example.helpdesk.repo.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,15 +22,12 @@ import java.util.List;
 public class AssetService {
     private final AssetRepository repo;
     private final UserRepository users;
+    private final BusinessMetrics businessMetrics;
 
-    @Autowired
-    public AssetService(AssetRepository repo, UserRepository users) {
+    public AssetService(AssetRepository repo, UserRepository users, BusinessMetrics businessMetrics) {
         this.repo = repo;
         this.users = users;
-    }
-
-    public AssetService(AssetRepository repo) {
-        this(repo, null);
+        this.businessMetrics = businessMetrics;
     }
 
     public List<Asset> all(String q) {
@@ -68,7 +68,11 @@ public class AssetService {
         if (a.getStatus() == AssetStatus.RETIRED && a.getAssignedUser() != null) {
             throw new IllegalArgumentException("Retired assets cannot be assigned");
         }
-        return repo.save(a);
+        Asset saved = repo.save(a);
+        if (a.getId() == null) {
+            businessMetrics.incrementAssetCreated();
+        }
+        return saved;
     }
 
     @Transactional
@@ -168,5 +172,58 @@ public class AssetService {
         if (form.getStatus() == AssetStatus.RETIRED && form.getAssignedUserId() != null) {
             throw new IllegalArgumentException("Retired assets cannot be assigned");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Asset> getAllAssetsPaginated(Pageable pageable) {
+        return repo.findAll(pageable);
+    }
+
+    public Asset getAssetById(Long id) {
+        return get(id);
+    }
+
+    public Asset createAsset(Asset asset) {
+        return save(asset);
+    }
+
+    public Asset updateAsset(Long id, Asset asset) {
+        Asset existing = get(id);
+        existing.setAssetTag(asset.getAssetTag());
+        existing.setName(asset.getName());
+        existing.setCategory(asset.getCategory());
+        existing.setManufacturer(asset.getManufacturer());
+        existing.setSerialNumber(asset.getSerialNumber());
+        existing.setPurchaseDate(asset.getPurchaseDate());
+        existing.setNotes(asset.getNotes());
+        existing.setStatus(asset.getStatus());
+        existing.setUpdatedAt(LocalDateTime.now());
+        return save(existing);
+    }
+
+    public Asset assignAsset(Long id, Long userId) {
+        Asset existing = get(id);
+        User user = users.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (user.getRole() != Role.EMPLOYEE) throw new IllegalArgumentException("Assets can only be assigned to employees");
+        if (existing.getStatus() == AssetStatus.RETIRED) throw new IllegalArgumentException("Retired assets cannot be assigned");
+        existing.setAssignedUser(user);
+        if (existing.getStatus() == AssetStatus.AVAILABLE) {
+            existing.setStatus(AssetStatus.ASSIGNED);
+        }
+        existing.setUpdatedAt(LocalDateTime.now());
+        Asset saved = repo.save(existing);
+        businessMetrics.incrementAssetAssigned();
+        return saved;
+    }
+
+    public Asset unassignAsset(Long id) {
+        unassign(id);
+        return get(id);
+    }
+
+    public void deleteAsset(Long id) {
+        Asset existing = get(id);
+        repo.delete(existing);
     }
 }

@@ -1,11 +1,16 @@
 package com.example.helpdesk.service;
 
 import com.example.helpdesk.dto.TicketEditForm;
+import com.example.helpdesk.events.TicketEvent;
 import com.example.helpdesk.exception.ResourceNotFoundException;
+import com.example.helpdesk.metrics.BusinessMetrics;
 import com.example.helpdesk.model.*;
 import com.example.helpdesk.repo.TicketHistoryRepository;
 import com.example.helpdesk.repo.TicketRepository;
 import com.example.helpdesk.repo.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,11 +24,15 @@ public class TicketService {
     private final TicketRepository tickets;
     private final UserRepository users;
     private final TicketHistoryRepository history;
+    private final ApplicationEventPublisher eventPublisher;
+    private final BusinessMetrics businessMetrics;
 
-    public TicketService(TicketRepository tickets, UserRepository users, TicketHistoryRepository history) {
+    public TicketService(TicketRepository tickets, UserRepository users, TicketHistoryRepository history, ApplicationEventPublisher eventPublisher, BusinessMetrics businessMetrics) {
         this.tickets = tickets;
         this.users = users;
         this.history = history;
+        this.eventPublisher = eventPublisher;
+        this.businessMetrics = businessMetrics;
     }
 
     @Transactional(readOnly = true)
@@ -56,7 +65,8 @@ public class TicketService {
         ticket.setReporter(reporter);
         ticket.setStatus(TicketStatus.OPEN);
         Ticket saved = tickets.save(ticket);
-        history.save(new TicketHistory(saved, reporter, "CREATED", "Ticket submitted"));
+        eventPublisher.publishEvent(new TicketEvent(this, saved, reporter, "CREATED", "Ticket submitted"));
+        businessMetrics.incrementTicketCreated();
         return saved;
     }
 
@@ -170,7 +180,7 @@ public class TicketService {
         if (assignee.getRole() != Role.TECHNICIAN) throw new IllegalArgumentException("Assignee must be a technician");
         String previous = ticket.getTechnician() == null ? null : ticket.getTechnician().getUsername();
         if (!Objects.equals(previous, assignee.getUsername())) {
-            history.save(new TicketHistory(ticket, actor, "ASSIGNED", "Ticket assigned", "technician", previous, assignee.getUsername()));
+            eventPublisher.publishEvent(new TicketEvent(this, ticket, actor, "ASSIGNED", "Ticket assigned", "technician", previous, assignee.getUsername()));
             ticket.setTechnician(assignee);
         }
     }
@@ -182,7 +192,12 @@ public class TicketService {
         TicketStatus previous = ticket.getStatus();
         String cleanNotes = notes == null ? null : notes.trim();
         if (status != previous) {
-            history.save(new TicketHistory(ticket, actor, "STATUS_CHANGED", "Status updated", "status", value(previous), value(status)));
+            eventPublisher.publishEvent(new TicketEvent(this, ticket, actor, "STATUS_CHANGED", "Status updated", "status", value(previous), value(status)));
+            if (status == TicketStatus.RESOLVED) {
+                businessMetrics.incrementTicketResolved();
+            } else if (status == TicketStatus.CLOSED) {
+                businessMetrics.incrementTicketClosed();
+            }
         }
         if (cleanNotes != null && !Objects.equals(cleanNotes, ticket.getResolutionNotes())) {
             saveChange(ticket, actor, "resolutionNotes", ticket.getResolutionNotes(), cleanNotes);
@@ -203,7 +218,7 @@ public class TicketService {
 
     private void saveChange(Ticket ticket, User actor, String field, String oldValue, String newValue) {
         if (!Objects.equals(oldValue, newValue)) {
-            history.save(new TicketHistory(ticket, actor, "FIELD_CHANGED", "Ticket field updated", field, oldValue, newValue));
+            eventPublisher.publishEvent(new TicketEvent(this, ticket, actor, "FIELD_CHANGED", "Ticket field updated", field, oldValue, newValue));
         }
     }
 
@@ -216,4 +231,47 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public List<Ticket> recent(int limit) { return tickets.findTop10ByOrderByUpdatedAtDesc().stream().limit(limit).toList(); }
+
+    @Transactional(readOnly = true)
+    public Page<Ticket> getAllTicketsPaginated(Pageable pageable) {
+        return tickets.findAll(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Ticket> getTicketsByReporterPaginated(String username, Pageable pageable) {
+        User reporter = users.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return tickets.findByReporter(reporter, pageable);
+    }
+
+    public Ticket getTicketById(Long id) {
+        return get(id);
+    }
+
+    public Ticket createTicket(Ticket ticket, String username) {
+        return create(ticket, username);
+    }
+
+    public Ticket updateTicket(Long id, Ticket ticket) {
+        TicketEditForm form = new TicketEditForm();
+        form.setTitle(ticket.getTitle());
+        form.setDescription(ticket.getDescription());
+        form.setCategory(ticket.getCategory());
+        form.setPriority(ticket.getPriority());
+        form.setTechnicianId(ticket.getTechnician() != null ? ticket.getTechnician().getId() : null);
+        form.setStatus(ticket.getStatus());
+        form.setResolutionNotes(ticket.getResolutionNotes());
+        return updateTicket(id, form, "system");
+    }
+
+    public Ticket updateStatus(Long id, String status, String resolutionNotes) {
+        TicketStatus ticketStatus = TicketStatus.valueOf(status.toUpperCase());
+        updateStatus(id, ticketStatus, resolutionNotes, "system");
+        return get(id);
+    }
+
+    public Ticket assignTicket(Long id, Long technicianId) {
+        assign(id, technicianId, "system");
+        return get(id);
+    }
 }

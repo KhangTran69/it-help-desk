@@ -1,12 +1,27 @@
 # IT Helpdesk & Asset Management System
 
-An enterprise-grade internal IT operations and help desk monolith built with **Java 21**, **Spring Boot 3.4.4**, **Thymeleaf**, **Spring Data JPA**, **MySQL**, **Flyway**, and **Spring Security** with BCrypt hashing.
+An enterprise-grade internal IT operations and help desk monolith built with **Java 21**, **Spring Boot 3.4.4**, **Thymeleaf**, **Spring Data JPA**, **MySQL**, **Flyway**, **Redis**, and **Spring Security** with JWT authentication.
 
-Designed to mirror realistic internal business applications at enterprise organizations (e.g., Texas Instruments), prioritizing secure role-based authorization, server-side data integrity, defense against parameter tampering, full audit trail logging, and robust automated test coverage.
+Designed to mirror realistic internal business applications at enterprise organizations (e.g., Texas Instruments), prioritizing secure role-based authorization, server-side data integrity, defense against parameter tampering, full audit trail logging, REST API with OpenAPI documentation, and robust automated test coverage.
 
 ---
 
 ## Key Features & Recent Improvements
+
+### 6. REST API with JWT Authentication (Phase 6)
+- **JWT Token Authentication**: Stateless authentication using JWT tokens with configurable expiration
+- **RESTful API Endpoints**: Full CRUD operations for tickets and assets via `/api/tickets` and `/api/assets`
+- **OpenAPI/Swagger Documentation**: Interactive API documentation at `/swagger-ui.html`
+- **Pagination Support**: All list endpoints support pagination with configurable page size and sorting
+- **Rate Limiting Ready**: Redis integration prepared for rate limiting implementation
+- **Custom Business Metrics**: Micrometer metrics for tickets created/resolved/closed and assets created/assigned
+
+### 7. Enterprise Security & Compliance
+- **Security Headers**: CSP, X-Frame-Options, HSTS, and other security headers configured
+- **Structured JSON Logging**: Production-ready JSON logging with Logstash encoder
+- **Graceful Shutdown**: Configured graceful shutdown with 30s timeout for zero-downtime deployments
+- **Database Indexing**: Comprehensive indexes on frequently queried columns for performance
+- **Event-Driven Architecture**: Spring Events for asynchronous audit logging
 
 ### 1. Complete Ticket Editing & Protection (Phase 2)
 - **Edit Existing Tickets**: Permitted users can update existing tickets without creating duplicates (`GET /tickets/{id}/edit`, `POST /tickets/{id}/edit`).
@@ -83,6 +98,43 @@ docker-compose up --build
 
 ## Architecture & Data Model
 
+### System Architecture
+
+```mermaid
+graph TB
+    Client[Client Browser / API Client]
+    LB[Load Balancer]
+    App[Spring Boot Application]
+    MySQL[(MySQL Database)]
+    Redis[(Redis Cache)]
+    
+    Client -->|HTTP/HTTPS| LB
+    LB --> App
+    App -->|JDBC| MySQL
+    App -->|TCP| Redis
+    
+    subgraph "Application Layer"
+        App --> API[REST API Controllers]
+        App --> Web[Web Controllers]
+        App --> Service[Service Layer]
+        App --> Events[Event Bus]
+        App --> Security[Security Config]
+    end
+    
+    subgraph "Data Layer"
+        Service --> Repos[Spring Data JPA]
+        Repos --> MySQL
+    end
+    
+    subgraph "Infrastructure"
+        App --> Metrics[Micrometer Metrics]
+        App --> Logging[Structured Logging]
+        App --> Actuator[Spring Boot Actuator]
+    end
+```
+
+### Database Schema
+
 ```mermaid
 erDiagram
  USERS ||--o{ TICKETS : reports
@@ -92,12 +144,143 @@ erDiagram
  USERS ||--o{ TICKET_HISTORY : acts_as
 ```
 
-- **Controller Layer**: Handles HTTP routing, model binding, and flash messages.
-- **Service Layer (`TicketService`, `AssetService`)**: Enforces all business rules, role-based authorization, and transactional consistency (`@Transactional`).
-- **Data Layer (`Spring Data JPA`)**: Repository interfaces with parameterized JPQL queries.
-- **Database Migrations (`Flyway`)**:
-  - `V1__init.sql`: Base tables (`users`, `tickets`, `assets`, `ticket_history`, indexes).
-  - `V2__audit_fields.sql`: Added `field_changed`, `previous_value`, and `new_value` audit columns.
+### Technology Stack
+
+- **Backend**: Java 21, Spring Boot 3.4.4, Spring Security, Spring Data JPA
+- **Database**: MySQL 8.0 with Flyway migrations
+- **Cache**: Redis 7 (prepared for session caching and rate limiting)
+- **Authentication**: JWT (JSON Web Tokens) with BCrypt password hashing
+- **API Documentation**: OpenAPI 3.0 with Swagger UI
+- **Monitoring**: Spring Boot Actuator with Micrometer metrics
+- **Logging**: Structured JSON logging with Logstash encoder
+- **Containerization**: Docker multi-stage builds with Docker Compose
+- **Testing**: JUnit 5, Testcontainers for integration tests
+
+### Architecture Patterns
+
+- **Layered Architecture**: Controller → Service → Repository pattern
+- **Event-Driven**: Spring Events for asynchronous audit logging
+- **Repository Pattern**: Spring Data JPA with custom JPQL queries
+- **DTO Pattern**: Separate DTOs for API and web layer to prevent mass assignment
+- **Builder Pattern**: Used for complex object construction
+
+---
+
+## REST API Documentation
+
+### Authentication
+
+All API endpoints (except `/api/auth/login`) require a valid JWT token in the `Authorization` header:
+
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+### Endpoints
+
+#### Authentication
+
+**POST `/api/auth/login`**
+```json
+{
+  "username": "technician",
+  "password": "technician123"
+}
+```
+
+Response:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "type": "Bearer",
+  "username": "technician",
+  "role": "TECHNICIAN",
+  "fullName": "Demo Technician"
+}
+```
+
+#### Tickets
+
+**GET `/api/tickets?page=0&size=10&sortBy=updatedAt&sortDir=desc`**
+- Requires: `ROLE_TECHNICIAN`
+- Returns paginated list of all tickets
+
+**GET `/api/tickets/{id}`**
+- Requires: `ROLE_TECHNICIAN`
+- Returns ticket details by ID
+
+**POST `/api/tickets`**
+- Requires: Authenticated user
+- Creates a new ticket
+```json
+{
+  "title": "Server overload detected",
+  "description": "CPU usage at 95% for 30 minutes",
+  "category": "HARDWARE",
+  "priority": "HIGH"
+}
+```
+
+**PUT `/api/tickets/{id}`**
+- Requires: `ROLE_TECHNICIAN`
+- Updates ticket details
+
+**PATCH `/api/tickets/{id}/status?status=RESOLVED&resolutionNotes=Replaced faulty RAM`**
+- Requires: `ROLE_TECHNICIAN`
+- Updates ticket status
+
+**PATCH `/api/tickets/{id}/assign?technicianId=2`**
+- Requires: `ROLE_TECHNICIAN`
+- Assigns ticket to technician
+
+**GET `/api/tickets/my?page=0&size=10`**
+- Requires: Authenticated user
+- Returns current user's tickets
+
+#### Assets
+
+**GET `/api/assets?page=0&size=10&sortBy=updatedAt&sortDir=desc`**
+- Requires: `ROLE_TECHNICIAN`
+- Returns paginated list of all assets
+
+**GET `/api/assets/{id}`**
+- Requires: `ROLE_TECHNICIAN`
+- Returns asset details by ID
+
+**POST `/api/assets`**
+- Requires: `ROLE_TECHNICIAN`
+- Creates a new asset
+```json
+{
+  "assetTag": "LAP-2024-08",
+  "modelName": "MacBook Pro 14",
+  "category": "Laptop",
+  "manufacturer": "Apple",
+  "serialNumber": "FVFX",
+  "purchaseDate": "2024-01-15",
+  "status": "AVAILABLE"
+}
+```
+
+**PUT `/api/assets/{id}`**
+- Requires: `ROLE_TECHNICIAN`
+- Updates asset details
+
+**PATCH `/api/assets/{id}/assign?userId=3`**
+- Requires: `ROLE_TECHNICIAN`
+- Assigns asset to user
+
+**PATCH `/api/assets/{id}/unassign`**
+- Requires: `ROLE_TECHNICIAN`
+- Unassigns asset
+
+**DELETE `/api/assets/{id}`**
+- Requires: `ROLE_TECHNICIAN`
+- Deletes asset
+
+### Interactive Documentation
+
+Visit `/swagger-ui.html` for interactive API documentation with the ability to test endpoints directly.
 
 ---
 
