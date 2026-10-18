@@ -54,6 +54,33 @@ Employees have a focused submission experience: after sign-in they land on the c
 
 ---
 
+## Quick Start (Docker)
+
+### Prerequisites
+- Docker and Docker Compose installed
+
+### Steps
+```bash
+# Clone the repository
+git clone https://github.com/KhangTran69/it-help-desk.git
+cd it-help-desk
+
+# Copy the example environment file and configure it
+cp .env.example .env
+# Edit .env with your secure passwords
+
+# Build and start all services
+docker-compose up --build
+
+# Access the application at http://localhost:8080
+```
+
+### Pre-Configured Demo Accounts
+- **Employee**: `employee` / `employee123`
+- **Technician**: `technician` / `technician123`
+
+---
+
 ## Architecture & Data Model
 
 ```mermaid

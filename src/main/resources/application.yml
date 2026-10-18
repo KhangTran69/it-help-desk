@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: it-helpdesk
+  profiles:
+    active: dev
+  jpa:
+    open-in-view: false
+  flyway:
+    enabled: true
+  thymeleaf:
+    cache: false
+server:
+  error:
+    whitelabel:
+      enabled: false
