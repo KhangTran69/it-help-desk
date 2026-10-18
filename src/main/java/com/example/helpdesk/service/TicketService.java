@@ -6,6 +6,8 @@ import com.example.helpdesk.model.*;
 import com.example.helpdesk.repo.TicketHistoryRepository;
 import com.example.helpdesk.repo.TicketRepository;
 import com.example.helpdesk.repo.UserRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +48,7 @@ public class TicketService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
     public Ticket create(Ticket ticket, String username) {
         if (ticket.getPriority() == null) ticket.setPriority(Priority.MEDIUM);
         validateRequired(ticket);
@@ -99,6 +102,7 @@ public class TicketService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
     public Ticket updateTicket(Long id, TicketEditForm form, String username) {
         validateRequired(form);
         User actor = findTechnician(username);
@@ -143,6 +147,7 @@ public class TicketService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
     public void updateStatus(Long id, TicketStatus status, String notes, String username) {
         if (status == null) throw new IllegalArgumentException("Status is required");
         if (requiresResolutionNotes(status) && (notes == null || notes.isBlank())) {
@@ -156,6 +161,7 @@ public class TicketService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
     public void assign(Long id, Long technicianId, String username) {
         User actor = findTechnician(username);
         Ticket ticket = get(id);
@@ -209,9 +215,16 @@ public class TicketService {
 
     private String value(Object value) { return value == null ? null : value.toString(); }
 
+    @Cacheable(cacheNames = "ticketCounts", key = "#status.name()")
     public long count(TicketStatus status) { return tickets.countByStatus(status); }
+
+    @Cacheable(cacheNames = "dashboardCounters", key = "'highPriority'")
     public long countHighPriority() { return tickets.countByPriority(Priority.HIGH); }
+
+    @Cacheable(cacheNames = "dashboardCounters", key = "'unassigned'")
     public long countUnassigned() { return tickets.countByTechnicianIsNull(); }
+
+    @Cacheable(cacheNames = "dashboardCounters", key = "'assigned:' + #technician.id")
     public long countAssignedTo(User technician) { return tickets.countByTechnician(technician); }
 
     @Transactional(readOnly = true)

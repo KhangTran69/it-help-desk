@@ -1,12 +1,24 @@
 # IT Helpdesk & Asset Management System
 
-An enterprise-grade internal IT operations and help desk monolith built with **Java 21**, **Spring Boot 3.4.4**, **Thymeleaf**, **Spring Data JPA**, **MySQL**, **Flyway**, and **Spring Security** with BCrypt hashing.
+An internal IT operations and help desk application built with **Java 17**, **Spring Boot 3.4.4**, **Thymeleaf**, **Spring Data JPA**, **MySQL**, **Flyway**, **Redis**, and **Spring Security** with BCrypt hashing.
 
 Designed to mirror realistic internal business applications at enterprise organizations (e.g., Texas Instruments), prioritizing secure role-based authorization, server-side data integrity, defense against parameter tampering, full audit trail logging, and robust automated test coverage.
 
 ---
 
 ## Key Features & Recent Improvements
+
+### Containerized Quick Start
+1. Copy `.env.example` to `.env` and set unique local values for `DB_PASSWORD` and `MYSQL_ROOT_PASSWORD` (the application and MySQL user use the same `DB_PASSWORD`). Never commit `.env`.
+2. Start the app, MySQL, and Redis with:
+
+```bash
+docker compose up --build
+```
+
+The app is available at [http://localhost:8080](http://localhost:8080); health is at [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health). MySQL is not published to the host by default; use `docker compose -f docker-compose.yml -f docker-compose.debug.yml up --build` only when local DB access is needed. The `helpdesk_mysql` volume persists database data. `docker compose down` preserves it; `docker compose down -v` deletes it.
+
+See [docker/README.md](docker/README.md) for configuration, health checks, test/build behavior, and troubleshooting.
 
 ### 1. Complete Ticket Editing & Protection (Phase 2)
 - **Edit Existing Tickets**: Permitted users can update existing tickets without creating duplicates (`GET /tickets/{id}/edit`, `POST /tickets/{id}/edit`).
@@ -20,7 +32,7 @@ Security rules are enforced on the backend service layer and via Spring Security
 | Capability | Employee | Technician | Rule Enforcement |
 |---|---|---|---|
 | View Ticket List | **Denied** | All organization tickets | `SecurityConfig` |
-| View Ticket Details | **Denied** | All organization tickets | `SecurityConfig` |
+| View Ticket Details | Own ticket progress only | All organization tickets | `SecurityConfig` + owner-scoped repository lookup |
 | Create Tickets | Allowed (starts `OPEN`) | Allowed | `TicketService.create` |
 | Edit Title, Desc, Category, Priority | **Denied** | Allowed | `TicketService.updateTicket` |
 | Assign / Reassign Technicians | **Denied** (HTTP tampering blocked) | Allowed | `TicketService.assign` & `SecurityConfig` |
@@ -28,7 +40,7 @@ Security rules are enforced on the backend service layer and via Spring Security
 | Enter Resolution Notes | **Denied** | Required when `RESOLVED`/`CLOSED` | Server validation |
 | Manage Assets (Add/Edit/Unassign) | **Denied** | Full management | `SecurityConfig` & `AssetService` |
 
-Employees have a focused submission experience: after sign-in they land on the create-ticket form, and after submitting they return to that form with a confirmation. Direct requests to the dashboard, ticket queue, ticket details, edit/status endpoints, and all asset routes are denied.
+Employees have a focused submission and tracking experience: after sign-in they land on the create-ticket form, can track only their own tickets at `/my-tickets`, and receive a direct progress link after submission. Direct requests to the dashboard, full technician queue, ticket management endpoints, and all asset routes are denied.
 
 ### 3. Comprehensive Audit Trail & Activity History (Phase 3)
 - Whenever a ticket is updated (title, description, category, priority, technician assignment, status transition, or resolution notes), an audit entry is recorded in `ticket_history`.
@@ -83,6 +95,8 @@ erDiagram
 | `GET` | `/tickets/new` | Authenticated | Focused support ticket creation form |
 | `POST` | `/tickets` | Authenticated | Create a new ticket; employees return to the creation form |
 | `GET` | `/tickets/{id}` | Technician | Ticket detail page and chronological audit feed |
+| `GET` | `/my-tickets` | Employee | List of the signed-in employee's submitted tickets |
+| `GET` | `/my-tickets/{id}` | Employee | Owner-checked ticket progress and status history |
 | `GET` | `/tickets/{id}/edit` | Technician | Edit ticket form (prefilled with current values) |
 | `POST` | `/tickets/{id}/edit` | Technician | Submit updates to an existing ticket |
 | `POST` | `/tickets/{id}/status` | Technician | Quick status transition with resolution notes |
@@ -101,7 +115,7 @@ erDiagram
 ## Running the Application Locally
 
 ### Prerequisites
-- JDK 21+
+- JDK 17+
 - Maven 3.8+
 - Docker (optional, for MySQL)
 
@@ -111,11 +125,14 @@ mvn spring-boot:run -Dspring-boot.run.profiles=h2
 ```
 Access the application at [http://localhost:8080](http://localhost:8080).
 
-### Option 2: MySQL with Docker
+### Option 2: Containerized app, MySQL, and Redis
 ```bash
-docker compose up -d
-mvn spring-boot:run
+cp .env.example .env
+# Edit .env and set unique DB_PASSWORD and MYSQL_ROOT_PASSWORD values.
+docker compose up --build
 ```
+
+For local development against MySQL on the host, activate the `dev` profile and provide `DB_PASSWORD`; the Compose app uses the `prod` profile and service DNS names.
 
 ### Pre-Configured Demo Accounts
 - **Employee**: `employee` / `employee123`
@@ -166,10 +183,11 @@ Follow these steps to manually test the ticket editing and permission workflow:
 1. **Test Employee Ticket Submission**:
    - Log in as `employee` / `employee123`.
    - Submit a ticket titled *"Laptop Wi-Fi drops intermittently"*.
-   - Verify the confirmation appears on the create-ticket page and that the page does not expose links to the dashboard, ticket list, or assets.
+   - Verify the confirmation includes a direct progress link and that the page does not expose links to the dashboard, full ticket queue, or assets.
+   - Open **My Tickets** and verify the submitted ticket appears with its status timeline.
 2. **Test Employee Permission Boundaries**:
-   - While signed in as `employee`, try `/`, `/tickets`, `/tickets/1`, and `/assets` directly.
-   - Verify the dashboard redirects to ticket creation and the protected ticket and asset pages return **HTTP 403 Access Denied**.
+   - While signed in as `employee`, try `/`, `/tickets`, `/tickets/{another employee's ticket ID}`, and `/assets` directly.
+   - Verify the dashboard redirects to ticket creation, full queue and asset pages return **HTTP 403**, and a non-owned `/my-tickets/{id}` returns **HTTP 404**.
 3. **Test Technician Workflow & Status Updates**:
    - Sign out and log in as `technician` / `technician123`.
    - Go to **Tickets**. Notice you can view all tickets submitted by employees.

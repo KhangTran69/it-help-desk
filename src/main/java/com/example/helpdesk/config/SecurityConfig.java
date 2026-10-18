@@ -37,6 +37,7 @@ public class SecurityConfig {
         return http
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/css/**", "/login", "/register", "/error").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         // The dashboard and asset administration are technician-only areas.
                         .requestMatchers("/assets", "/assets/**").hasRole("TECHNICIAN")
                         // Employee tracking pages are scoped again to the authenticated owner in TicketService.

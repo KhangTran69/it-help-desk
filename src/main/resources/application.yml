@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: it-helpdesk
+  profiles:
+    default: dev
+  jpa:
+    open-in-view: false
+  thymeleaf:
+    cache: true
+server:
+  error:
+    whitelabel:
+      enabled: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  info:
+    env:
+      enabled: true
+info:
+  app:
+    name: IT Helpdesk
+    description: IT Help Desk and Asset Management System

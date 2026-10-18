@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+target/
+data/
+docs/screenshots/
+it-help-desk/
+*.log
