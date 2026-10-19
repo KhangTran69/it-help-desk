@@ -2,7 +2,7 @@
 
 An enterprise-grade internal IT operations and help desk monolith built with **Java 21**, **Spring Boot 3.4.4**, **Thymeleaf**, **Spring Data JPA**, **MySQL**, **Flyway**, **Redis**, and **Spring Security** with JWT authentication.
 
-Designed to mirror realistic internal business applications at enterprise organizations (e.g., Texas Instruments), prioritizing secure role-based authorization, server-side data integrity, defense against parameter tampering, full audit trail logging, REST API with OpenAPI documentation, and robust automated test coverage.
+Designed to mirror realistic internal business applications at enterprise organizations, prioritizing secure role-based authorization, server-side data integrity, defense against parameter tampering, full audit trail logging, REST API with OpenAPI documentation, and robust automated test coverage.
 
 ---
 
