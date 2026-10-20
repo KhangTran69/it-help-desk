@@ -1,10 +1,14 @@
 .git
 .gitignore
+.idea
+.vscode
+*.iml
 .env
 .env.*
 !.env.example
 target/
 data/
+logs/
+*.log
 docs/screenshots/
 it-help-desk/
-*.log

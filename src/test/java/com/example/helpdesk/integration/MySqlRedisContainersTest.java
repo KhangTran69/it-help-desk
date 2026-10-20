@@ -48,7 +48,7 @@ class MySqlRedisContainersTest {
 
     @Test
     void migrationsAndRedisDashboardCacheWorkWithRealServices() {
-        assertEquals(3, jdbc.queryForObject("SELECT MAX(version) FROM flyway_schema_history WHERE success = TRUE", Integer.class));
+        assertEquals(4, jdbc.queryForObject("SELECT MAX(version) FROM flyway_schema_history WHERE success = TRUE", Integer.class));
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'tickets' AND column_name = 'version'", Integer.class) > 0);
 
         String suffix = Long.toString(System.nanoTime());

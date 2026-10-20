@@ -6,11 +6,13 @@ services:
     image: it-helpdesk:local
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
-      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-it_helpdesk}?serverTimezone=UTC
+      DB_URL: ${DB_URL:-jdbc:mysql://mysql:3306/it_helpdesk?serverTimezone=UTC}
       DB_USERNAME: ${DB_USERNAME:-helpdesk}
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     ports:
       - "${APP_PORT:-8080}:8080"
     depends_on:
@@ -21,7 +23,6 @@ services:
     restart: unless-stopped
     networks:
       - helpdesk
-
   mysql:
     image: mysql:8
     environment:
@@ -40,7 +41,6 @@ services:
     restart: unless-stopped
     networks:
       - helpdesk
-
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
@@ -54,11 +54,9 @@ services:
     restart: unless-stopped
     networks:
       - helpdesk
-
 volumes:
   helpdesk_mysql:
   helpdesk_redis:
-
 networks:
   helpdesk:
     driver: bridge

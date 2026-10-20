@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:${SPRING_DATASOURCE_URL:jdbc:mysql://mysql:3306/it_helpdesk?serverTimezone=UTC}}
+    username: ${DB_USERNAME:${SPRING_DATASOURCE_USERNAME:helpdesk}}
+    password: ${DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -17,6 +17,26 @@ spring:
     redis:
       time-to-live: 30s
       cache-null-values: false
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+server:
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:86400000}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
 logging:
   level:
     root: INFO
+    com.example: INFO
