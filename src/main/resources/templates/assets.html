@@ -42,6 +42,8 @@
 
   <div class="toolbar card" style="padding: 16px; margin-bottom: 20px;">
     <form class="filter-form" method="get" action="/assets">
+      <select name="sort" aria-label="Sort assets"><option value="updatedAt" th:selected="${sort == 'updatedAt'}">Sort: updated</option><option value="assetTag" th:selected="${sort == 'assetTag'}">Sort: tag</option><option value="name" th:selected="${sort == 'name'}">Sort: name</option><option value="status" th:selected="${sort == 'status'}">Sort: status</option><option value="category" th:selected="${sort == 'category'}">Sort: category</option></select>
+      <select name="dir" aria-label="Sort direction"><option value="desc" th:selected="${dir == 'desc'}">Descending</option><option value="asc" th:selected="${dir == 'asc'}">Ascending</option></select>
       <input name="q" placeholder="Search by asset tag, name, or manufacturer" th:value="${q}">
 
       <select name="status" aria-label="Status" onchange="this.form.submit()">
@@ -53,6 +55,8 @@
         <option value="">Category: All</option>
         <option th:each="c : ${categories}" th:value="${c}" th:text="${c}" th:selected="${c == selectedCategory}"></option>
       </select>
+
+      <select name="size" aria-label="Rows per page"><option value="10" th:selected="${size == 10}">10 / page</option><option value="20" th:selected="${size == 20}">20 / page</option><option value="50" th:selected="${size == 50}">50 / page</option></select>
 
       <button type="submit">Filter</button>
       <a th:if="${q != null or selectedStatus != null or selectedCategory != null}" href="/assets" class="button secondary" style="padding: 11px 14px;">Reset</a>
@@ -74,7 +78,7 @@
       </tr>
       </thead>
       <tbody>
-      <tr th:each="a : ${assets}">
+      <tr th:each="a : ${assets.content}">
         <td><strong th:text="${a.assetTag}" style="color:var(--teal-dark);">AST-0001</strong></td>
         <td th:text="${a.name}" style="font-weight:600;">Name</td>
         <td th:text="${a.category}">Category</td>
@@ -96,7 +100,7 @@
           </div>
         </td>
       </tr>
-      <tr th:if="${#lists.isEmpty(assets)}">
+      <tr th:if="${assets.empty}">
         <td th:colspan="${isTechnician ? 8 : 7}" class="empty">
           <p style="font-size:16px; font-weight:600; margin-bottom:6px;">No assets found</p>
           <p class="muted" style="margin:0;">No equipment matches your filter criteria.</p>
@@ -107,8 +111,8 @@
   </div>
 
   <div class="pagination">
-    <span th:text="${#lists.size(assets) + ' asset(s) registered'}">0 asset(s)</span>
-    <span class="muted">IT Asset Lifecycle Management</span>
+    <span th:text="|${assets.totalElements} asset(s) · page ${assets.number + 1} of ${assets.totalPages == 0 ? 1 : assets.totalPages}|">0 asset(s)</span>
+    <span class="page-links"><a th:if="${assets.hasPrevious()}" th:href="@{/assets(q=${q},status=${selectedStatus},category=${selectedCategory},page=${assets.number - 1},size=${size},sort=${sort},dir=${dir})}">← Previous</a><a th:if="${assets.hasNext()}" th:href="@{/assets(q=${q},status=${selectedStatus},category=${selectedCategory},page=${assets.number + 1},size=${size},sort=${sort},dir=${dir})}">Next →</a></span>
   </div>
 </main>
 </body>

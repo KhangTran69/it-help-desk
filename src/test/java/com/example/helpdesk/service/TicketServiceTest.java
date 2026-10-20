@@ -2,6 +2,7 @@ package com.example.helpdesk.service;
 
 import com.example.helpdesk.dto.TicketEditForm;
 import com.example.helpdesk.exception.ResourceNotFoundException;
+import com.example.helpdesk.exception.TicketEditConflictException;
 import com.example.helpdesk.model.*;
 import com.example.helpdesk.repo.TicketHistoryRepository;
 import com.example.helpdesk.repo.TicketRepository;
@@ -221,6 +222,7 @@ class TicketServiceTest {
         form.setPriority(Priority.HIGH);
         form.setStatus(TicketStatus.IN_PROGRESS);
         form.setTechnicianId(201L);
+        form.setVersion(existing.getVersion());
 
         Ticket updated = service.updateTicket(5L, form, "charlie");
 
@@ -232,6 +234,30 @@ class TicketServiceTest {
         verify(history, atLeastOnce()).save(captor.capture());
         assertTrue(captor.getAllValues().stream().anyMatch(h -> "ASSIGNED".equals(h.getAction())));
         assertTrue(captor.getAllValues().stream().anyMatch(h -> "STATUS_CHANGED".equals(h.getAction())));
+    }
+
+    @Test
+    void staleTechnicianEditIsRejectedInsteadOfOverwritingNewerVersion() {
+        Ticket current = new Ticket();
+        current.setId(8L);
+        current.setVersion(2L);
+        current.setTitle("Newer title");
+        current.setDescription("Current description");
+        current.setCategory(Category.HARDWARE);
+        current.setPriority(Priority.MEDIUM);
+        current.setStatus(TicketStatus.OPEN);
+        when(tickets.findById(8L)).thenReturn(Optional.of(current));
+        when(users.findByUsername("charlie")).thenReturn(Optional.of(technicianCharlie));
+
+        TicketEditForm staleForm = new TicketEditForm();
+        staleForm.setVersion(1L);
+        staleForm.setTitle("Old page title");
+        staleForm.setDescription("Old description");
+        staleForm.setCategory(Category.HARDWARE);
+        staleForm.setPriority(Priority.MEDIUM);
+
+        assertThrows(TicketEditConflictException.class, () -> service.updateTicket(8L, staleForm, "charlie"));
+        verify(tickets, never()).save(any(Ticket.class));
     }
 
     @Test
@@ -255,6 +281,7 @@ class TicketServiceTest {
         form.setPriority(Priority.LOW);
         form.setStatus(TicketStatus.RESOLVED);
         form.setResolutionNotes("   "); // Blank notes
+        form.setVersion(existing.getVersion());
 
         assertThrows(IllegalArgumentException.class, () -> service.updateTicket(6L, form, "charlie"));
     }
@@ -278,6 +305,7 @@ class TicketServiceTest {
         form.setDescription("Old Desc");
         form.setCategory(Category.SOFTWARE);
         form.setPriority(Priority.HIGH);
+        form.setVersion(existing.getVersion());
 
         when(users.findByUsername("charlie")).thenReturn(Optional.of(technicianCharlie));
         service.updateTicket(7L, form, "charlie");

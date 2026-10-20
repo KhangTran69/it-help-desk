@@ -4,6 +4,8 @@ import com.example.helpdesk.model.*;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -11,6 +13,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     List<Ticket> findTop10ByOrderByUpdatedAtDesc();
     List<Ticket> findByReporterOrderByUpdatedAtDesc(User u);
     List<Ticket> findByReporterUsernameOrderByUpdatedAtDesc(String username);
+    Page<Ticket> findByReporterUsername(String username, Pageable pageable);
     java.util.Optional<Ticket> findByIdAndReporterUsername(Long id, String username);
     long countByStatus(TicketStatus s);
     long countByPriority(Priority p);
@@ -38,4 +41,25 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
         @Param("unassigned") Boolean unassigned,
         @Param("q") String q
     );
+
+    @Query(value = "SELECT t FROM Ticket t WHERE " +
+           "(:reporter IS NULL OR t.reporter = :reporter) AND " +
+           "(:status IS NULL OR t.status = :status) AND " +
+           "(:priority IS NULL OR t.priority = :priority) AND " +
+           "(:category IS NULL OR t.category = :category) AND " +
+           "(:technician IS NULL OR t.technician = :technician) AND " +
+           "(:unassigned IS NULL OR (:unassigned = true AND t.technician IS NULL) OR (:unassigned = false AND t.technician IS NOT NULL)) AND " +
+           "(:q IS NULL OR :q = '' OR LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%')) OR CAST(t.id AS string) = :q)",
+           countQuery = "SELECT COUNT(t) FROM Ticket t WHERE " +
+           "(:reporter IS NULL OR t.reporter = :reporter) AND " +
+           "(:status IS NULL OR t.status = :status) AND " +
+           "(:priority IS NULL OR t.priority = :priority) AND " +
+           "(:category IS NULL OR t.category = :category) AND " +
+           "(:technician IS NULL OR t.technician = :technician) AND " +
+           "(:unassigned IS NULL OR (:unassigned = true AND t.technician IS NULL) OR (:unassigned = false AND t.technician IS NOT NULL)) AND " +
+           "(:q IS NULL OR :q = '' OR LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%')) OR CAST(t.id AS string) = :q)")
+    Page<Ticket> pageTickets(@Param("reporter") User reporter, @Param("status") TicketStatus status,
+                             @Param("priority") Priority priority, @Param("category") Category category,
+                             @Param("technician") User technician, @Param("unassigned") Boolean unassigned,
+                             @Param("q") String q, Pageable pageable);
 }

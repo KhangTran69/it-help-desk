@@ -9,7 +9,9 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -DforkCount=0 verify
 
 FROM eclipse-temurin:17-jre-jammy AS runtime
-RUN useradd --system --uid 10001 --create-home appuser
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --create-home appuser
 WORKDIR /app
 COPY --from=build --chown=10001:10001 /workspace/target/it-helpdesk-0.0.1-SNAPSHOT.jar /app/app.jar
 USER 10001:10001

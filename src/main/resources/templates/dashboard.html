@@ -108,7 +108,7 @@
           <td><a class="title-link" th:href="@{'/tickets/' + ${t.id}}" th:text="${t.title}">Subject</a></td>
           <td><span class="badge" th:classappend="' ' + ${t.priority}" th:text="${t.priority}"></span></td>
           <td><span class="badge" th:classappend="' ' + ${t.status}" th:text="${t.status}"></span></td>
-          <td th:text="${#temporals.format(t.updatedAt, 'MMM d, yyyy HH:mm')}">Date</td>
+          <td th:text="${@phTime.dateTime(t.updatedAt)}">Date</td>
           <td style="text-align:right;">
             <a class="button secondary" style="padding:5px 11px; font-size:12px;" th:href="@{'/tickets/' + ${t.id}}">Manage</a>
           </td>

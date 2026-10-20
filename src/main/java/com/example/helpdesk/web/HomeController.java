@@ -15,6 +15,10 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import java.util.Set;
 
 @Controller
 public class HomeController {
@@ -54,14 +58,22 @@ public class HomeController {
                       @RequestParam(required = false) Category category,
                       @RequestParam(required = false) Long technicianId,
                       @RequestParam(required = false) Boolean unassigned,
+                      @RequestParam(defaultValue = "0") int page,
+                      @RequestParam(defaultValue = "20") int size,
+                      @RequestParam(defaultValue = "updatedAt") String sort,
+                      @RequestParam(defaultValue = "desc") String dir,
                       Model model) {
-        model.addAttribute("tickets", tickets.search(status, priority, category, technicianId, unassigned, q));
+        Pageable pageable = pageable(page, size, sort, dir, Set.of("updatedAt", "createdAt", "priority", "status", "title"), "updatedAt");
+        model.addAttribute("tickets", tickets.searchPage(status, priority, category, technicianId, unassigned, q, pageable));
         model.addAttribute("q", q);
         model.addAttribute("selectedStatus", status);
         model.addAttribute("selectedPriority", priority);
         model.addAttribute("selectedCategory", category);
         model.addAttribute("selectedTechnicianId", technicianId);
         model.addAttribute("unassigned", unassigned);
+        model.addAttribute("sort", pageable.getSort().stream().findFirst().map(Sort.Order::getProperty).orElse("updatedAt"));
+        model.addAttribute("dir", pageable.getSort().stream().findFirst().map(o -> o.getDirection().name().toLowerCase()).orElse("desc"));
+        model.addAttribute("size", pageable.getPageSize());
         model.addAttribute("statuses", TicketStatus.values());
         model.addAttribute("priorities", Priority.values());
         model.addAttribute("categories", Category.values());
@@ -97,8 +109,10 @@ public class HomeController {
     }
 
     @GetMapping("/my-tickets")
-    String myTickets(Authentication authentication, Model model) {
-        model.addAttribute("tickets", tickets.findMyTickets(authentication.getName()));
+    String myTickets(Authentication authentication, @RequestParam(defaultValue = "0") int page,
+                     @RequestParam(defaultValue = "10") int size, Model model) {
+        Pageable pageable = pageable(page, size, "updatedAt", "desc", Set.of("updatedAt"), "updatedAt");
+        model.addAttribute("tickets", tickets.findMyTickets(authentication.getName(), pageable));
         return "my-tickets";
     }
 
@@ -109,16 +123,36 @@ public class HomeController {
         model.addAttribute("history", tickets.progressHistory(id, authentication.getName()));
         model.addAttribute("statuses", TicketStatus.values());
         model.addAttribute("currentStep", ticket.getStatus().ordinal());
+        model.addAttribute("comments", tickets.publicComments(id, authentication.getName()));
         return "my-ticket-progress";
+    }
+
+    @PostMapping("/my-tickets/{id}/comments")
+    String employeeComment(@PathVariable Long id, @RequestParam String content, Authentication authentication,
+                           RedirectAttributes redirect) {
+        tickets.addEmployeeComment(id, authentication.getName(), content);
+        redirect.addFlashAttribute("success", "Your comment was added.");
+        return "redirect:/my-tickets/" + id;
     }
 
     @GetMapping("/tickets/{id}")
     String ticketDetail(@PathVariable Long id, Model model) {
         model.addAttribute("ticket", tickets.get(id));
         model.addAttribute("history", tickets.history(id));
+        model.addAttribute("comments", tickets.allComments(id));
         model.addAttribute("statuses", TicketStatus.values());
         model.addAttribute("technicians", users.findByRole(Role.TECHNICIAN));
+        model.addAttribute("version", model.getAttribute("ticket") instanceof Ticket t ? t.getVersion() : null);
         return "ticket-detail";
+    }
+
+    @PostMapping("/tickets/{id}/comments")
+    String technicianComment(@PathVariable Long id, @RequestParam String content,
+                             @RequestParam(defaultValue = "false") boolean internalNote,
+                             Authentication authentication, RedirectAttributes redirect) {
+        tickets.addTechnicianComment(id, authentication.getName(), content, internalNote);
+        redirect.addFlashAttribute("success", internalNote ? "Internal note added." : "Reply added.");
+        return "redirect:/tickets/" + id;
     }
 
     @GetMapping("/tickets/{id}/edit")
@@ -170,13 +204,21 @@ public class HomeController {
     @GetMapping("/assets")
     String assetList(@RequestParam(required = false) String q,
                      @RequestParam(required = false) AssetStatus status,
-                     @RequestParam(required = false) String category, Model model) {
-        model.addAttribute("assets", assetService.filter(q, status, category));
+                     @RequestParam(required = false) String category,
+                     @RequestParam(defaultValue = "0") int page,
+                     @RequestParam(defaultValue = "20") int size,
+                     @RequestParam(defaultValue = "updatedAt") String sort,
+                     @RequestParam(defaultValue = "desc") String dir, Model model) {
+        Pageable pageable = pageable(page, size, sort, dir, Set.of("updatedAt", "createdAt", "assetTag", "name", "status", "category"), "updatedAt");
+        model.addAttribute("assets", assetService.filterPage(q, status, category, pageable));
         model.addAttribute("q", q);
         model.addAttribute("statuses", AssetStatus.values());
         model.addAttribute("categories", assetService.categories());
         model.addAttribute("selectedStatus", status);
         model.addAttribute("selectedCategory", category);
+        model.addAttribute("sort", pageable.getSort().stream().findFirst().map(Sort.Order::getProperty).orElse("updatedAt"));
+        model.addAttribute("dir", pageable.getSort().stream().findFirst().map(o -> o.getDirection().name().toLowerCase()).orElse("desc"));
+        model.addAttribute("size", pageable.getPageSize());
         model.addAttribute("isTechnician", true);
         return "assets";
     }
@@ -252,5 +294,13 @@ public class HomeController {
     private boolean isTechnician(Authentication authentication) {
         return authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()));
+    }
+
+    private Pageable pageable(int page, int size, String sort, String direction, Set<String> allowed, String fallback) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        String safeSort = allowed.contains(sort) ? sort : fallback;
+        Sort.Direction safeDirection = "asc".equalsIgnoreCase(direction) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        return PageRequest.of(safePage, safeSize, Sort.by(safeDirection, safeSort));
     }
 }

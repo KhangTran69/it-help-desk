@@ -5,6 +5,10 @@ spring:
     default: dev
   jpa:
     open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
   thymeleaf:
     cache: true
 server:

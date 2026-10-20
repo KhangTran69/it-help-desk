@@ -41,7 +41,10 @@
 
   <div th:if="${success}" class="notice success" role="status">
     <span th:text="${success}"></span>
-    <a href="/my-tickets" class="notice-link" th:if="${submittedTicketId != null}">Track your ticket</a>
+    <div class="notice-actions" th:if="${submittedTicketId != null}">
+      <a class="button compact-button" th:href="@{/my-tickets/{id}(id=${submittedTicketId})}">View ticket progress</a>
+      <a class="notice-link" href="/my-tickets">My tickets</a>
+    </div>
   </div>
   <div th:if="${error}" class="notice error" th:text="${error}"></div>
 
@@ -82,6 +85,7 @@
 
     <div class="actions">
       <button type="submit">Submit Ticket</button>
+      <a class="button secondary" href="/my-tickets#tickets-list" th:if="${!isTechnician}">My tickets</a>
     </div>
   </form>
 </main>

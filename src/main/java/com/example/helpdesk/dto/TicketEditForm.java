@@ -25,6 +25,7 @@ public class TicketEditForm {
     private TicketStatus status;
     private Long technicianId;
     private String resolutionNotes;
+    private Long version;
 
     public TicketEditForm() {}
 
@@ -37,6 +38,7 @@ public class TicketEditForm {
         form.setStatus(ticket.getStatus());
         form.setTechnicianId(ticket.getTechnician() != null ? ticket.getTechnician().getId() : null);
         form.setResolutionNotes(ticket.getResolutionNotes());
+        form.setVersion(ticket.getVersion());
         return form;
     }
 
@@ -60,4 +62,6 @@ public class TicketEditForm {
 
     public String getResolutionNotes() { return resolutionNotes; }
     public void setResolutionNotes(String resolutionNotes) { this.resolutionNotes = resolutionNotes; }
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 }

@@ -9,5 +9,18 @@
     <form method="post" th:action="@{'/tickets/' + ${ticket.id} + '/status'}" class="stack-form"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><label>Status<select id="status" name="status"><option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${s == ticket.status}"></option></select></label><label>Resolution / closure notes<textarea id="notes" name="notes" rows="3" th:text="${ticket.resolutionNotes}" placeholder="Required to resolve or close this ticket"></textarea></label><button type="submit">Save status</button></form>
     <form method="post" th:action="@{'/tickets/' + ${ticket.id} + '/assign'}" class="inline-form"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><label>Assign to<select name="technicianId" required><option value="">Choose technician</option><option th:each="tech : ${technicians}" th:value="${tech.id}" th:text="${tech.fullName}" th:selected="${ticket.technician != null and ticket.technician.id == tech.id}"></option></select></label><button type="submit">Assign</button></form>
   </div>
-  <h2>Activity history</h2><div class="card"><div class="history-item" th:each="h : ${history}"><strong th:text="${h.action}">Action</strong><span th:text="${h.details}">Details</span><small th:text="${#temporals.format(h.createdAt, 'MMM d, yyyy HH:mm')}">Date</small><div th:if="${h.fieldChanged != null}"><span class="change-pill old" th:text="${h.previousValue ?: '—'}"></span><span class="change-pill new" th:text="${h.newValue ?: '—'}"></span></div></div><p class="empty" th:if="${#lists.isEmpty(history)}">No activity recorded yet.</p></div>
+  <h2>Activity history</h2><div class="card"><div class="history-item" th:each="h : ${history}"><strong th:text="${h.action}">Action</strong><span th:text="${h.details}">Details</span><small th:text="${@phTime.dateTime(h.createdAt)}">Date</small><div th:if="${h.fieldChanged != null}"><span class="change-pill old" th:text="${h.previousValue ?: '—'}"></span><span class="change-pill new" th:text="${h.newValue ?: '—'}"></span></div></div><p class="empty" th:if="${#lists.isEmpty(history)}">No activity recorded yet.</p></div>
+  <section class="card comment-section" aria-labelledby="comments-heading">
+    <h2 id="comments-heading">Conversation and internal notes</h2>
+    <article class="comment-item" th:each="comment : ${comments}" th:classappend="${comment.internalNote ? ' internal-comment' : ''}">
+      <div class="comment-meta"><strong th:text="${comment.author.fullName}">Author</strong><span th:if="${comment.internalNote}" class="badge">Internal note · technicians only</span><time th:text="${@phTime.dateTime(comment.createdAt)}">Date</time></div>
+      <p class="pre-wrap" th:text="${comment.content}">Comment text</p>
+    </article>
+    <p class="empty" th:if="${#lists.isEmpty(comments)}">No comments yet.</p>
+    <form method="post" th:action="@{'/tickets/' + ${ticket.id} + '/comments'}" class="stack-form comment-form"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+      <label>Reply or internal note<textarea name="content" rows="4" maxlength="5000" required></textarea></label>
+      <label class="inline-check"><input type="checkbox" name="internalNote" value="true"> Keep this as an internal technician note</label>
+      <button type="submit">Add comment</button>
+    </form>
+  </section>
 </main><script>const statusSelect=document.getElementById('status'),notes=document.getElementById('notes');function setNotesRule(){notes.required=statusSelect.value==='RESOLVED'||statusSelect.value==='CLOSED';}statusSelect.addEventListener('change',setNotesRule);setNotesRule();</script></body></html>

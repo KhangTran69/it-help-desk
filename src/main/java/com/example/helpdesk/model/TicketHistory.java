@@ -2,6 +2,7 @@ package com.example.helpdesk.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "ticket_history")
@@ -33,7 +34,7 @@ public class TicketHistory {
     private String newValue;
 
     @Column(nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now(ZoneOffset.UTC);
 
     public TicketHistory() {}
 
@@ -42,7 +43,7 @@ public class TicketHistory {
         this.actor = a;
         this.action = x;
         this.details = d;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public TicketHistory(Ticket t, User a, String x, String d, String fieldChanged, String previousValue, String newValue) {
@@ -53,7 +54,7 @@ public class TicketHistory {
         this.fieldChanged = fieldChanged;
         this.previousValue = previousValue;
         this.newValue = newValue;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public Long getId() { return id; }

@@ -34,28 +34,29 @@
     <a class="button" href="/tickets/new">＋ Create ticket</a>
   </div>
   <div th:if="${success}" class="notice success" role="status" th:text="${success}"></div>
-  <div class="table-wrap" th:if="${!#lists.isEmpty(tickets)}">
+  <div class="table-wrap" id="tickets-list" th:if="${!tickets.empty}">
     <table class="employee-ticket-table">
       <thead><tr><th>Reference</th><th>Subject</th><th>Submitted</th><th>Last updated</th><th>Priority</th><th>Status</th><th></th></tr></thead>
       <tbody>
-      <tr th:each="ticket : ${tickets}">
-        <td th:text="|#${ticket.id}|">#1</td>
-        <td class="ticket-subject" th:text="${ticket.title}">Unable to connect</td>
-        <td th:text="${#temporals.format(ticket.createdAt, 'MMM d, yyyy')}">Oct 17, 2026</td>
-        <td th:text="${#temporals.format(ticket.updatedAt, 'MMM d, yyyy h:mm a')}">Oct 17, 2026</td>
-        <td><span class="badge" th:classappend="${ticket.priority}" th:text="${ticket.priority}">MEDIUM</span></td>
-        <td><span class="badge" th:classappend="${ticket.status}" th:text="${#strings.replace(ticket.status.name(), '_', ' ')}">OPEN</span></td>
-        <td><a class="button secondary compact-button" th:href="@{/my-tickets/{id}(id=${ticket.id})}">View progress</a></td>
+      <tr th:each="ticket : ${tickets.content}">
+        <td data-label="Reference" th:text="|#${ticket.id}|">#1</td>
+        <td class="ticket-subject" data-label="Subject" th:text="${ticket.title}">Unable to connect</td>
+        <td data-label="Submitted" th:text="${@phTime.date(ticket.createdAt)}">Oct 17, 2026</td>
+        <td data-label="Last updated" th:text="${@phTime.dateTime(ticket.updatedAt)}">Oct 17, 2026</td>
+        <td data-label="Priority"><span class="badge" th:classappend="${ticket.priority}" th:text="${ticket.priority}">MEDIUM</span></td>
+        <td data-label="Status"><span class="badge" th:classappend="${ticket.status}" th:text="${#strings.replace(ticket.status.name(), '_', ' ')}">OPEN</span></td>
+        <td data-label="Progress"><a class="button secondary compact-button" th:href="@{/my-tickets/{id}(id=${ticket.id})}" th:attr="aria-label=|View progress for ${ticket.title}|">View progress</a></td>
       </tr>
       </tbody>
     </table>
   </div>
-  <div class="card empty-state" th:if="${#lists.isEmpty(tickets)}">
+  <div class="card empty-state" th:if="${tickets.empty}">
     <div class="empty-icon" aria-hidden="true">✓</div>
     <h2>No tickets yet</h2>
     <p class="muted">When you submit a support request, you can follow its progress here.</p>
     <a class="button" href="/tickets/new">Create your first ticket</a>
   </div>
+  <div class="pagination" th:if="${tickets.totalPages > 1}"><span th:text="|Page ${tickets.number + 1} of ${tickets.totalPages}|">Page 1</span><span class="page-links"><a th:if="${tickets.hasPrevious()}" th:href="@{/my-tickets(page=${tickets.number - 1})}">← Previous</a><a th:if="${tickets.hasNext()}" th:href="@{/my-tickets(page=${tickets.number + 1})}">Next →</a></span></div>
 </main>
 </body>
 </html>

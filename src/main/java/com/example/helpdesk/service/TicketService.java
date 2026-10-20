@@ -2,17 +2,23 @@ package com.example.helpdesk.service;
 
 import com.example.helpdesk.dto.TicketEditForm;
 import com.example.helpdesk.exception.ResourceNotFoundException;
+import com.example.helpdesk.exception.TicketEditConflictException;
 import com.example.helpdesk.model.*;
 import com.example.helpdesk.repo.TicketHistoryRepository;
+import com.example.helpdesk.repo.TicketCommentRepository;
 import com.example.helpdesk.repo.TicketRepository;
 import com.example.helpdesk.repo.UserRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 
@@ -21,11 +27,28 @@ public class TicketService {
     private final TicketRepository tickets;
     private final UserRepository users;
     private final TicketHistoryRepository history;
+    private final TicketCommentRepository comments;
 
-    public TicketService(TicketRepository tickets, UserRepository users, TicketHistoryRepository history) {
+    @Autowired
+    public TicketService(TicketRepository tickets, UserRepository users, TicketHistoryRepository history, TicketCommentRepository comments) {
         this.tickets = tickets;
         this.users = users;
         this.history = history;
+        this.comments = comments;
+    }
+
+    public TicketService(TicketRepository tickets, UserRepository users, TicketHistoryRepository history) {
+        this(tickets, users, history, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Ticket> searchPage(TicketStatus status, Priority priority, Category category,
+                                   Long technicianId, Boolean unassigned, String query, Pageable pageable) {
+        User technician = technicianId == null ? null : users.findById(technicianId)
+                .orElseThrow(() -> new ResourceNotFoundException("Technician not found"));
+        if (technician != null && technician.getRole() != Role.TECHNICIAN) throw new IllegalArgumentException("Assignee must be a technician");
+        return tickets.pageTickets(null, status, priority, category, technician, unassigned,
+                query == null || query.isBlank() ? null : query.trim(), pageable);
     }
 
     @Transactional(readOnly = true)
@@ -81,6 +104,11 @@ public class TicketService {
         return tickets.findByReporterUsernameOrderByUpdatedAtDesc(username);
     }
 
+    @Transactional(readOnly = true)
+    public Page<Ticket> findMyTickets(String username, Pageable pageable) {
+        return tickets.findByReporterUsername(username, pageable);
+    }
+
     /** Returns 404 for both missing and non-owned tickets to avoid disclosing another user's records. */
     @Transactional(readOnly = true)
     public Ticket getMyTicket(Long id, String username) {
@@ -101,12 +129,52 @@ public class TicketService {
         return history.findByTicketOrderByCreatedAtDesc(get(id));
     }
 
+    @Transactional(readOnly = true)
+    public List<TicketComment> publicComments(Long id, String username) {
+        return comments.findByTicketAndInternalNoteFalseOrderByCreatedAtAsc(getMyTicket(id, username));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TicketComment> allComments(Long id) {
+        return comments.findByTicketOrderByCreatedAtAsc(get(id));
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
+    public void addEmployeeComment(Long id, String username, String content) {
+        Ticket ticket = getMyTicket(id, username);
+        addComment(ticket, findUser(username), content, false);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
+    public void addTechnicianComment(Long id, String username, String content, boolean internalNote) {
+        Ticket ticket = get(id);
+        addComment(ticket, findTechnician(username), content, internalNote);
+    }
+
+    private void addComment(Ticket ticket, User author, String content, boolean internalNote) {
+        if (content == null || content.isBlank()) throw new IllegalArgumentException("Comment cannot be empty");
+        if (content.length() > 5000) throw new IllegalArgumentException("Comment cannot exceed 5000 characters");
+        comments.save(new TicketComment(ticket, author, content.trim(), internalNote));
+        ticket.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
+        tickets.save(ticket);
+        history.save(new TicketHistory(ticket, author, "COMMENT_ADDED", internalNote ? "Internal note added" : "Comment added"));
+    }
+
+    private User findUser(String username) {
+        return users.findByUsername(username).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
     @Transactional
     @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
     public Ticket updateTicket(Long id, TicketEditForm form, String username) {
         validateRequired(form);
         User actor = findTechnician(username);
         Ticket ticket = get(id);
+        if (form.getVersion() == null || !Objects.equals(form.getVersion(), ticket.getVersion())) {
+            throw new TicketEditConflictException();
+        }
 
         saveChange(ticket, actor, "title", ticket.getTitle(), form.getTitle());
         saveChange(ticket, actor, "description", ticket.getDescription(), form.getDescription());
@@ -127,7 +195,7 @@ public class TicketService {
             saveChange(ticket, actor, "resolutionNotes", ticket.getResolutionNotes(), form.getResolutionNotes());
             ticket.setResolutionNotes(form.getResolutionNotes().trim());
         }
-        ticket.setUpdatedAt(LocalDateTime.now());
+        ticket.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         return tickets.save(ticket);
     }
 
@@ -156,7 +224,7 @@ public class TicketService {
         User actor = findTechnician(username);
         Ticket ticket = get(id);
         updateStatusValue(ticket, actor, status, notes);
-        ticket.setUpdatedAt(LocalDateTime.now());
+        ticket.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         tickets.save(ticket);
     }
 
@@ -166,7 +234,7 @@ public class TicketService {
         User actor = findTechnician(username);
         Ticket ticket = get(id);
         assignTo(ticket, actor, technicianId);
-        ticket.setUpdatedAt(LocalDateTime.now());
+        ticket.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         tickets.save(ticket);
     }
 

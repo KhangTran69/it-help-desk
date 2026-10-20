@@ -1,8 +1,6 @@
 # IT Helpdesk & Asset Management System
 
-An internal IT operations and help desk application built with **Java 17**, **Spring Boot 3.4.4**, **Thymeleaf**, **Spring Data JPA**, **MySQL**, **Flyway**, **Redis**, and **Spring Security** with BCrypt hashing.
-
-Designed to mirror realistic internal business applications at enterprise organizations (e.g., Texas Instruments), prioritizing secure role-based authorization, server-side data integrity, defense against parameter tampering, full audit trail logging, and robust automated test coverage.
+An educational portfolio project: a containerized Spring Boot IT help desk and asset management web application. It is a single deployable application (not a microservice system) using Java 17, Spring Boot, Thymeleaf, Spring Data JPA, MySQL, Flyway, Redis caching, and Spring Security with BCrypt.
 
 ---
 
@@ -63,6 +61,10 @@ Employees have a focused submission and tracking experience: after sign-in they 
 - **Assignment & Unassignment**: Assign equipment directly to active employees; unassign equipment back into storage with a single click.
 - **Duplicate Tag Protection**: Validates unique asset tags while allowing updates to the current asset (`existsByAssetTagAndIdNot`).
 - **Business Rule Validation**: Prevents assigning retired equipment to users; retiring an asset automatically unassigns it.
+- **Ticket conversation**: Employees can comment on tickets they own; technicians can reply or add technician-only internal notes.
+- **Paged lists and edit conflict protection**: Technician ticket/asset queues and employee tracking are server paginated. Technician edits carry a JPA optimistic-lock version and stale forms receive HTTP 409.
+- **Philippine display time**: Application timestamps are stored as UTC and formatted for users in Philippine Time (PHT).
+- **Graceful Redis degradation**: Cache failures are logged and ignored so dashboard metrics continue using database queries.
 
 ---
 
@@ -74,6 +76,7 @@ erDiagram
  USERS ||--o{ TICKETS : assigned
  USERS ||--o{ ASSETS : assigned_user
  TICKETS ||--o{ TICKET_HISTORY : tracks
+ TICKETS ||--o{ TICKET_COMMENTS : has
  USERS ||--o{ TICKET_HISTORY : acts_as
 ```
 
@@ -83,6 +86,7 @@ erDiagram
 - **Database Migrations (`Flyway`)**:
   - `V1__init.sql`: Base tables (`users`, `tickets`, `assets`, `ticket_history`, indexes).
   - `V2__audit_fields.sql`: Added `field_changed`, `previous_value`, and `new_value` audit columns.
+  - `V3__ticket_comments_and_optimistic_lock.sql`: Adds comments and optimistic-lock versioning.
 
 ---
 
@@ -134,7 +138,16 @@ docker compose up --build
 
 For local development against MySQL on the host, activate the `dev` profile and provide `DB_PASSWORD`; the Compose app uses the `prod` profile and service DNS names.
 
-### Pre-Configured Demo Accounts
+### Optional local demo accounts
+
+Seed accounts are created only when the explicit `demo` profile is active. For a local H2 demo, use:
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo
+```
+
+These credentials are for local demonstration only; do not enable the demo profile in a public deployment.
+
 - **Employee**: `employee` / `employee123`
 - **Technician**: `technician` / `technician123`
 
@@ -144,10 +157,14 @@ For local development against MySQL on the host, activate the `dev` profile and 
 
 Run all automated unit and integration tests:
 ```bash
-mvn test
+mvn verify
 ```
 
-The suite covers the employee and technician authorization boundaries, ticket submission and validation, ticket filtering and workflow rules, audit history, and asset management. Run the command above for current results.
+The suite covers the employee and technician authorization boundaries, ticket submission and validation, ownership-safe tracking, ticket filtering and workflow rules, audit history, and asset management. Testcontainers exercises Flyway migrations and Redis cache eviction with MySQL/Redis when Docker is available; those tests are skipped if Docker is unavailable. Browser-flow coverage can be enabled with `mvn verify -Dbrowser.tests=true` (requires Chrome/Chromium and Docker for the container-backed tests). CI runs the browser flow, Maven verification, and builds the container image.
+
+### Screenshots and known limitations
+
+The screenshots below are captured from the current employee tracking and technician ticket-detail flows. The application is a single Spring Boot deployable with Redis as an optional cache; it is not split into independently deployed microservices. CI builds but does not publish an image or deploy it. The automated browser test is opt-in locally and enabled in CI; no hosted deployment is configured.
 
 ### Key Test Coverage Areas:
 1. **Ticket Editing (`TicketServiceTest`)**:
@@ -208,7 +225,6 @@ Follow these steps to manually test the ticket editing and permission workflow:
 ---
 
 ## Known Limitations & Future Enhancements
-- **Multi-technician collaborative comments**: In addition to status changes and audit logs, a conversational comment stream could be added in a future iteration.
 - **Attachment uploads**: File uploads (screenshots/system logs) could be integrated with AWS S3 or local directory storage.
 - **Email notifications**: Async JavaMailSender integration for email alerts on ticket assignment and status resolution.
 
@@ -216,12 +232,12 @@ Follow these steps to manually test the ticket editing and permission workflow:
 
 ## Application UI Walkthrough
 
-### Ticket Editing Page (`GET /tickets/{id}/edit`)
-Prefilled form with core ticket metadata, server-validated fields, and role-based technician controls.
+### Employee Ticket Progress (`GET /my-tickets/{id}`)
+Owner-scoped ticket tracking with a clear status timeline, PHT timestamps, priority, request details, and public conversation.
 
-![Ticket Editing Interface](docs/screenshots/ticket-edit.jpg)
+![Employee ticket progress page](docs/screenshots/employee-ticket-progress.png)
 
-### Ticket Detail & Activity Audit Feed (`GET /tickets/{id}`)
-Detailed issue overview with quick actions, real-time status badges, and chronological before/after audit history.
+### Technician Ticket Detail (`GET /tickets/{id}`)
+Technician status and resolution controls, assignment form, and chronological activity history.
 
-![Ticket Detail & Audit Trail](docs/screenshots/ticket-detail.jpg)
+![Technician ticket detail page](docs/screenshots/technician-ticket-detail.png)

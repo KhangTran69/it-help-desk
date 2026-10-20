@@ -13,7 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Service
 public class AssetService {
@@ -38,6 +41,12 @@ public class AssetService {
         String cleanQ = (q != null && !q.isBlank()) ? q.trim() : null;
         String cleanCat = (category != null && !category.isBlank()) ? category.trim() : null;
         return repo.searchAssets(cleanQ, status, cleanCat);
+    }
+
+    public Page<Asset> filterPage(String q, AssetStatus status, String category, Pageable pageable) {
+        String cleanQ = (q != null && !q.isBlank()) ? q.trim() : null;
+        String cleanCat = (category != null && !category.isBlank()) ? category.trim() : null;
+        return repo.pageAssets(cleanQ, status, cleanCat, pageable);
     }
 
     public List<String> categories() {
@@ -141,7 +150,7 @@ public class AssetService {
             }
         }
 
-        existing.setUpdatedAt(LocalDateTime.now());
+        existing.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         return repo.save(existing);
     }
 
@@ -152,7 +161,7 @@ public class AssetService {
         if (existing.getStatus() == AssetStatus.ASSIGNED) {
             existing.setStatus(AssetStatus.AVAILABLE);
         }
-        existing.setUpdatedAt(LocalDateTime.now());
+        existing.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         repo.save(existing);
     }
 

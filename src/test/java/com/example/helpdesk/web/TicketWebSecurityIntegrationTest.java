@@ -3,6 +3,7 @@ package com.example.helpdesk.web;
 import com.example.helpdesk.model.*;
 import com.example.helpdesk.repo.AssetRepository;
 import com.example.helpdesk.repo.TicketHistoryRepository;
+import com.example.helpdesk.repo.TicketCommentRepository;
 import com.example.helpdesk.repo.TicketRepository;
 import com.example.helpdesk.repo.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +47,9 @@ class TicketWebSecurityIntegrationTest {
     private TicketHistoryRepository historyRepository;
 
     @Autowired
+    private TicketCommentRepository commentRepository;
+
+    @Autowired
     private PasswordEncoder encoder;
 
     private User employeeAlice;
@@ -59,6 +63,7 @@ class TicketWebSecurityIntegrationTest {
     @BeforeEach
     void setUp() {
         historyRepository.deleteAll();
+        commentRepository.deleteAll();
         ticketRepository.deleteAll();
         assetRepository.deleteAll();
         userRepository.deleteAll();
@@ -105,6 +110,10 @@ class TicketWebSecurityIntegrationTest {
 
     @Test
     void unauthenticatedUserRedirectedToLogin() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+
         mockMvc.perform(get("/tickets"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrlPattern("**/login"));
@@ -116,6 +125,21 @@ class TicketWebSecurityIntegrationTest {
         mockMvc.perform(get("/"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrlPattern("**/login"));
+
+        mockMvc.perform(post("/tickets/new").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrlPattern("**/login"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.request()
+                        .sessionAttributeDoesNotExist("SPRING_SECURITY_SAVED_REQUEST"));
+    }
+
+    @Test
+    @WithMockUser(username = "charlie", roles = "TECHNICIAN")
+    void unsupportedPostDoesNotBecomeInternalServerError() throws Exception {
+        mockMvc.perform(post("/tickets/new").with(csrf()))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(content().string(containsString("HTTP 405")))
+                .andExpect(content().string(containsString("Action not available")));
     }
 
     @Test
@@ -167,15 +191,71 @@ class TicketWebSecurityIntegrationTest {
     }
 
     @Test
+    @WithMockUser(username = "alice", roles = "EMPLOYEE")
+    void employeeCanCommentOnlyOnOwnTicketAndCannotCreateInternalNotes() throws Exception {
+        mockMvc.perform(post("/my-tickets/" + aliceOpenTicket.getId() + "/comments")
+                        .with(csrf()).param("content", "I am available after lunch.").param("internalNote", "true"))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(get("/my-tickets/" + aliceOpenTicket.getId()))
+                .andExpect(status().isOk()).andExpect(content().string(containsString("I am available after lunch.")));
+        mockMvc.perform(post("/my-tickets/" + bobOpenTicket.getId() + "/comments")
+                        .with(csrf()).param("content", "Unauthorized"))
+                .andExpect(status().isNotFound());
+        assertEquals(1, commentRepository.findByTicketAndInternalNoteFalseOrderByCreatedAtAsc(aliceOpenTicket).size());
+    }
+
+    @Test
+    @WithMockUser(username = "charlie", roles = "TECHNICIAN")
+    void technicianInternalNotesAreNotShownToEmployee() throws Exception {
+        mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/comments")
+                        .with(csrf()).param("content", "Check private asset inventory").param("internalNote", "true"))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(get("/tickets/" + aliceOpenTicket.getId()))
+                .andExpect(status().isOk()).andExpect(content().string(containsString("Check private asset inventory")));
+        mockMvc.perform(get("/my-tickets/" + aliceOpenTicket.getId()).with(userDetails("alice", "EMPLOYEE")))
+                .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.not(containsString("Check private asset inventory"))));
+    }
+
+    @Test
+    @WithMockUser(username = "charlie", roles = "TECHNICIAN")
+    void technicianListsRenderPagedTicketAndAssetResults() throws Exception {
+        mockMvc.perform(get("/tickets").param("size", "1").param("sort", "priority").param("dir", "asc"))
+                .andExpect(status().isOk()).andExpect(content().string(containsString("page 1 of")))
+                .andExpect(content().string(containsString("Next →")));
+        mockMvc.perform(get("/assets").param("size", "1").param("q", "AST"))
+                .andExpect(status().isOk()).andExpect(content().string(containsString("page 1 of 1")));
+    }
+
+    @Test
     @WithMockUser(username = "charlie", roles = "TECHNICIAN")
     void technicianStatusUpdateIsVisibleInEmployeeProgress() throws Exception {
+        var previousUpdatedAt = aliceOpenTicket.getUpdatedAt();
         mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/status")
                         .with(csrf()).param("status", "IN_PROGRESS"))
                 .andExpect(status().is3xxRedirection());
 
+        Ticket updated = ticketRepository.findById(aliceOpenTicket.getId()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertTrue(updated.getUpdatedAt().isAfter(previousUpdatedAt));
+
         mockMvc.perform(get("/my-tickets/" + aliceOpenTicket.getId()).with(userDetails("alice", "EMPLOYEE")))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("IN PROGRESS")));
+                .andExpect(content().string(containsString("IN PROGRESS")))
+                .andExpect(content().string(containsString("Last updated")));
+    }
+
+    @Test
+    @WithMockUser(username = "charlie", roles = "TECHNICIAN")
+    void technicianAssignmentRefreshesEmployeeVisibleLastUpdatedDate() throws Exception {
+        var previousUpdatedAt = aliceOpenTicket.getUpdatedAt();
+        mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/assign")
+                        .with(csrf()).param("technicianId", techCharlie.getId().toString()))
+                .andExpect(status().is3xxRedirection());
+
+        Ticket updated = ticketRepository.findById(aliceOpenTicket.getId()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertTrue(updated.getUpdatedAt().isAfter(previousUpdatedAt));
+        mockMvc.perform(get("/my-tickets/" + aliceOpenTicket.getId()).with(userDetails("alice", "EMPLOYEE")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Last updated")));
     }
 
     @Test
@@ -269,6 +349,7 @@ class TicketWebSecurityIntegrationTest {
                         .param("description", "Replaced cable")
                         .param("category", "HARDWARE")
                         .param("priority", "MEDIUM")
+                        .param("version", aliceOpenTicket.getVersion().toString())
                         .param("status", "RESOLVED")
                         .param("technicianId", techCharlie.getId().toString())
                         .param("resolutionNotes", "Replaced faulty DisplayPort cable with new 4K certified cable."))
@@ -365,6 +446,13 @@ class TicketWebSecurityIntegrationTest {
         assertEquals(employeeAlice.getId(), created.getReporter().getId());
         assertEquals(TicketStatus.OPEN, created.getStatus());
         assertEquals(Priority.HIGH, created.getPriority());
+
+        mockMvc.perform(get("/tickets/new")
+                        .flashAttr("success", "Your ticket was submitted successfully.")
+                        .flashAttr("submittedTicketId", created.getId()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("View ticket progress")))
+                .andExpect(content().string(containsString("/my-tickets/" + created.getId())));
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor userDetails(String username, String role) {

@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
 
 @Configuration
 @EnableMethodSecurity
@@ -34,6 +35,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        HttpSessionRequestCache requestCache = new HttpSessionRequestCache();
+        requestCache.setRequestMatcher(request -> "GET".equals(request.getMethod()));
         return http
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/css/**", "/login", "/register", "/error").permitAll()
@@ -55,6 +58,10 @@ public class SecurityConfig {
                 )
                 .logout(l -> l
                         .logoutSuccessUrl("/login?logout")
+                )
+                // Never replay an unauthenticated state-changing request after login.
+                .requestCache(cache -> cache
+                        .requestCache(requestCache)
                 )
                 .exceptionHandling(e -> e.accessDeniedPage("/access-denied"))
                 .build();
