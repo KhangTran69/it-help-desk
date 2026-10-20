@@ -62,10 +62,14 @@ class TicketBrowserFlowTest {
         new Select(browser.findElement(By.name("category"))).selectByValue("HARDWARE");
         new Select(browser.findElement(By.name("priority"))).selectByValue("HIGH");
         browser.findElement(By.cssSelector("form[action='/tickets'] button[type='submit']")).click();
-        assertTrue(browser.getPageSource().contains("submitted successfully"), () -> browser.getCurrentUrl() + "\n" + browser.getPageSource());
+        new WebDriverWait(browser, Duration.ofSeconds(10))
+                .withMessage(() -> "Ticket confirmation did not appear at " + browser.getCurrentUrl() + "\n" + browser.getPageSource())
+                .until(driver -> driver.getPageSource().contains("submitted successfully"));
         browser.findElement(By.linkText("My tickets")).click();
         browser.findElement(By.linkText("View progress")).click();
-        assertTrue(browser.getPageSource().contains("Browser workflow request"));
+        new WebDriverWait(browser, Duration.ofSeconds(10))
+                .withMessage(() -> "Employee ticket progress did not load at " + browser.getCurrentUrl())
+                .until(driver -> driver.getPageSource().contains("Browser workflow request"));
         captureScreenshot("employee-ticket-progress.png");
         Long ticketId = tickets.findAll().stream().filter(t -> t.getTitle().equals("Browser workflow request"))
                 .findFirst().orElseThrow().getId();
@@ -80,7 +84,12 @@ class TicketBrowserFlowTest {
         browser.get(baseUrl() + "/tickets/" + ticketId);
         assertTrue(browser.getPageSource().contains("Browser workflow request"));
         captureScreenshot("technician-ticket-detail.png");
-        new Select(browser.findElement(By.name("technicianId"))).selectByValue(users.findByUsername(technicianUsername).orElseThrow().getId().toString());
+        String technicianId = users.findByUsername(technicianUsername).orElseThrow().getId().toString();
+        var assignmentSelect = new WebDriverWait(browser, Duration.ofSeconds(10))
+                .withMessage(() -> "Assignment form was not rendered at " + browser.getCurrentUrl() + "\n" + browser.getPageSource())
+                .until(driver -> driver.findElements(By.cssSelector("form[action$='/assign'] select[name='technicianId']"))
+                        .stream().findFirst().orElse(null));
+        new Select(assignmentSelect).selectByValue(technicianId);
         browser.findElement(By.cssSelector("form[action$='/assign'] button[type='submit']")).click();
         new WebDriverWait(browser, Duration.ofSeconds(10)).until(driver -> driver.findElement(By.id("status")).isDisplayed());
         new Select(browser.findElement(By.id("status"))).selectByValue("RESOLVED");
@@ -94,6 +103,9 @@ class TicketBrowserFlowTest {
         browser.findElement(By.name("username")).sendKeys(username);
         browser.findElement(By.name("password")).sendKeys(password);
         browser.findElement(By.cssSelector("button[type='submit'], form button:not([type])")).click();
+        new WebDriverWait(browser, Duration.ofSeconds(10))
+                .withMessage(() -> "Login did not complete; current page: " + browser.getCurrentUrl())
+                .until(driver -> !driver.getCurrentUrl().endsWith("/login"));
     }
 
     private String baseUrl() { return "http://localhost:" + port; }
