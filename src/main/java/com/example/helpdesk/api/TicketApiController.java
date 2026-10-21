@@ -26,6 +26,9 @@ import java.util.stream.Collectors;
 @Tag(name = "Tickets", description = "Ticket management API endpoints")
 public class TicketApiController {
 
+    private static final int MAX_PAGE_SIZE = 100;
+    private static final java.util.Set<String> SORT_FIELDS = java.util.Set.of("id", "title", "status", "priority", "createdAt", "updatedAt");
+
     private final TicketService ticketService;
 
     public TicketApiController(TicketService ticketService) {
@@ -41,8 +44,7 @@ public class TicketApiController {
             @Parameter(description = "Sort field") @RequestParam(defaultValue = "updatedAt") String sortBy,
             @Parameter(description = "Sort direction") @RequestParam(defaultValue = "desc") String sortDir) {
 
-        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
-        Pageable pageable = PageRequest.of(page, size, sort);
+        Pageable pageable = apiPageable(page, size, sortBy, sortDir);
         Page<Ticket> tickets = ticketService.getAllTicketsPaginated(pageable);
 
         List<TicketDto> ticketDtos = tickets.getContent().stream()
@@ -116,7 +118,7 @@ public class TicketApiController {
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
 
         String username = authentication.getName();
-        Pageable pageable = PageRequest.of(page, size, Sort.by("updatedAt").descending());
+        Pageable pageable = apiPageable(page, size, "updatedAt", "desc");
         Page<Ticket> tickets = ticketService.getTicketsByReporterPaginated(username, pageable);
 
         List<TicketDto> ticketDtos = tickets.getContent().stream()
@@ -132,6 +134,16 @@ public class TicketApiController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    private Pageable apiPageable(int page, int size, String sortBy, String sortDir) {
+        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE || !SORT_FIELDS.contains(sortBy)
+                || !("asc".equalsIgnoreCase(sortDir) || "desc".equalsIgnoreCase(sortDir))) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid pagination or sorting parameters");
+        }
+        Sort sort = "asc".equalsIgnoreCase(sortDir) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        return PageRequest.of(page, size, sort);
     }
 
     private TicketDto convertToDto(Ticket ticket) {

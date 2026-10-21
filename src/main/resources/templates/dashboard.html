@@ -44,26 +44,27 @@
   <div th:if="${error}" class="notice error" th:text="${error}"></div>
 
   <div class="stats">
-    <div class="stat accent">
+    <a class="stat stat-link accent" href="/tickets?status=OPEN" aria-label="View open tickets">
       <span>Open Tickets</span>
       <strong th:text="${open}">0</strong>
-    </div>
-    <div class="stat">
+    </a>
+    <a class="stat stat-link" href="/tickets?status=IN_PROGRESS" aria-label="View tickets in progress">
       <span>In Progress</span>
       <strong th:text="${progress}">0</strong>
-    </div>
-    <div class="stat">
+    </a>
+    <a class="stat stat-link" href="/tickets?status=RESOLVED" aria-label="View resolved and closed tickets">
       <span>Resolved / Closed</span>
       <strong th:text="${resolvedClosed}">0</strong>
-    </div>
-    <div class="stat">
+      <span class="small">Resolved and closed</span>
+    </a>
+    <a class="stat stat-link" href="/assets" aria-label="View registered assets">
       <span>Registered Assets</span>
       <strong th:text="${assets}">0</strong>
-    </div>
+    </a>
   </div>
 
   <!-- Technician Extra Metrics Row -->
-  <div th:if="${isTechnician}" class="stats" style="grid-template-columns: repeat(3, 1fr); margin-top: -10px; margin-bottom: 26px;">
+  <div th:if="${isTechnician}" class="stats stats-secondary">
     <div class="stat" style="border-left: 4px solid #f59e0b;">
       <span>Unassigned Tickets</span>
       <strong th:text="${unassigned}" style="color:#d97706;">0</strong>

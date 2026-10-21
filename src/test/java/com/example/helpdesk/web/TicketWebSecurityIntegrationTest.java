@@ -109,6 +109,29 @@ class TicketWebSecurityIntegrationTest {
     }
 
     @Test
+    @WithMockUser(username = "charlie", roles = "TECHNICIAN")
+    void apiRejectsInvalidPaginationAndUnknownSortFieldsAsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/tickets").param("page", "-1"))
+                .andExpect(status().isBadRequest()).andExpect(content().contentTypeCompatibleWith("application/json"));
+        mockMvc.perform(get("/api/tickets").param("size", "101"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/tickets").param("sortBy", "reporter.password"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/assets").param("sortBy", "assignedUser.password"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "charlie", roles = "TECHNICIAN")
+    void dashboardSummaryCardsNavigateToFilteredLists() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("/tickets?status=OPEN")))
+                .andExpect(content().string(containsString("/tickets?status=IN_PROGRESS")))
+                .andExpect(content().string(containsString("/assets")));
+    }
+
+    @Test
     void unauthenticatedUserRedirectedToLogin() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk())
