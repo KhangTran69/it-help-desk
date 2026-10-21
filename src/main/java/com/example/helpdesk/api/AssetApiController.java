@@ -25,6 +25,9 @@ import java.util.stream.Collectors;
 @Tag(name = "Assets", description = "Asset management API endpoints")
 public class AssetApiController {
 
+    private static final int MAX_PAGE_SIZE = 100;
+    private static final java.util.Set<String> SORT_FIELDS = java.util.Set.of("id", "assetTag", "name", "category", "status", "purchaseDate", "updatedAt");
+
     private final AssetService assetService;
 
     public AssetApiController(AssetService assetService) {
@@ -40,7 +43,12 @@ public class AssetApiController {
             @Parameter(description = "Sort field") @RequestParam(defaultValue = "updatedAt") String sortBy,
             @Parameter(description = "Sort direction") @RequestParam(defaultValue = "desc") String sortDir) {
 
-        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE || !SORT_FIELDS.contains(sortBy)
+                || !("asc".equalsIgnoreCase(sortDir) || "desc".equalsIgnoreCase(sortDir))) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid pagination or sorting parameters");
+        }
+        Sort sort = "asc".equalsIgnoreCase(sortDir) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<Asset> assets = assetService.getAllAssetsPaginated(pageable);
 

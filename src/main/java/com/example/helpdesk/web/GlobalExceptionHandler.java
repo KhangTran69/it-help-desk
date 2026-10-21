@@ -17,6 +17,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.ResponseEntity;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -66,6 +70,19 @@ public class GlobalExceptionHandler {
         model.addAttribute("status", 400);
         model.addAttribute("error", "Invalid request");
         model.addAttribute("message", "A request value is invalid or missing. Check your input and try again.");
+        return "error";
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public Object handleResponseStatus(ResponseStatusException ex, Model model, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        String message = ex.getReason() == null ? status.getReasonPhrase() : ex.getReason();
+        if (request.getRequestURI().startsWith("/api/")) {
+            return ResponseEntity.status(status).body(Map.of("status", status.value(), "error", status.getReasonPhrase(), "message", message));
+        }
+        model.addAttribute("status", status.value());
+        model.addAttribute("error", status.getReasonPhrase());
+        model.addAttribute("message", message);
         return "error";
     }
 
