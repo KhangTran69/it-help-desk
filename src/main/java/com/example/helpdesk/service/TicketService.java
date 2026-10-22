@@ -58,11 +58,18 @@ public class TicketService {
     @Transactional(readOnly = true)
     public Page<Ticket> searchPage(TicketStatus status, Priority priority, Category category,
                                    Long technicianId, Boolean unassigned, String query, Pageable pageable) {
+        return searchPage(status, priority, category, technicianId, unassigned, query, false, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Ticket> searchPage(TicketStatus status, Priority priority, Category category,
+                                   Long technicianId, Boolean unassigned, String query,
+                                   boolean resolvedClosed, Pageable pageable) {
         User technician = technicianId == null ? null : users.findById(technicianId)
                 .orElseThrow(() -> new ResourceNotFoundException("Technician not found"));
         if (technician != null && technician.getRole() != Role.TECHNICIAN) throw new IllegalArgumentException("Assignee must be a technician");
         return tickets.pageTickets(null, status, priority, category, technician, unassigned,
-                query == null || query.isBlank() ? null : query.trim(), pageable);
+                query == null || query.isBlank() ? null : query.trim(), resolvedClosed, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -105,6 +112,7 @@ public class TicketService {
         if (ticket.getTitle() == null || ticket.getTitle().isBlank()) throw new IllegalArgumentException("Title is required");
         if (ticket.getTitle().length() > 160) throw new IllegalArgumentException("Title cannot exceed 160 characters");
         if (ticket.getDescription() == null || ticket.getDescription().isBlank()) throw new IllegalArgumentException("Description is required");
+        if (ticket.getDescription().length() > 2000) throw new IllegalArgumentException("Description cannot exceed 2000 characters");
         if (ticket.getCategory() == null) throw new IllegalArgumentException("Category is required");
         if (ticket.getPriority() == null) throw new IllegalArgumentException("Priority is required");
     }
@@ -156,25 +164,26 @@ public class TicketService {
 
     @Transactional
     @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
-    public void addEmployeeComment(Long id, String username, String content) {
+    public TicketComment addEmployeeComment(Long id, String username, String content) {
         Ticket ticket = getMyTicket(id, username);
-        addComment(ticket, findUser(username), content, false);
+        return addComment(ticket, findUser(username), content, false);
     }
 
     @Transactional
     @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
-    public void addTechnicianComment(Long id, String username, String content, boolean internalNote) {
+    public TicketComment addTechnicianComment(Long id, String username, String content, boolean internalNote) {
         Ticket ticket = get(id);
-        addComment(ticket, findTechnician(username), content, internalNote);
+        return addComment(ticket, findTechnician(username), content, internalNote);
     }
 
-    private void addComment(Ticket ticket, User author, String content, boolean internalNote) {
+    private TicketComment addComment(Ticket ticket, User author, String content, boolean internalNote) {
         if (content == null || content.isBlank()) throw new IllegalArgumentException("Comment cannot be empty");
         if (content.length() > 5000) throw new IllegalArgumentException("Comment cannot exceed 5000 characters");
-        comments.save(new TicketComment(ticket, author, content.trim(), internalNote));
+        TicketComment comment = comments.save(new TicketComment(ticket, author, content.trim(), internalNote));
         ticket.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         tickets.save(ticket);
         history.save(new TicketHistory(ticket, author, "COMMENT_ADDED", internalNote ? "Internal note added" : "Comment added"));
+        return comment;
     }
 
     private User findUser(String username) {
@@ -218,6 +227,7 @@ public class TicketService {
         if (form.getTitle() == null || form.getTitle().isBlank()) throw new IllegalArgumentException("Title is required");
         if (form.getTitle().length() > 160) throw new IllegalArgumentException("Title cannot exceed 160 characters");
         if (form.getDescription() == null || form.getDescription().isBlank()) throw new IllegalArgumentException("Description is required");
+        if (form.getDescription().length() > 2000) throw new IllegalArgumentException("Description cannot exceed 2000 characters");
         if (form.getCategory() == null) throw new IllegalArgumentException("Category is required");
         if (form.getPriority() == null) throw new IllegalArgumentException("Priority is required");
     }
@@ -232,12 +242,19 @@ public class TicketService {
     @Transactional
     @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
     public void updateStatus(Long id, TicketStatus status, String notes, String username) {
+        updateStatus(id, status, notes, username, null);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
+    public void updateStatus(Long id, TicketStatus status, String notes, String username, Long expectedVersion) {
         if (status == null) throw new IllegalArgumentException("Status is required");
         if (requiresResolutionNotes(status) && (notes == null || notes.isBlank())) {
             throw new IllegalArgumentException("Resolution notes are required when resolving or closing a ticket");
         }
         User actor = findTechnician(username);
         Ticket ticket = get(id);
+        assertExpectedVersion(ticket, expectedVersion);
         updateStatusValue(ticket, actor, status, notes);
         ticket.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         tickets.save(ticket);
@@ -246,11 +263,24 @@ public class TicketService {
     @Transactional
     @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
     public void assign(Long id, Long technicianId, String username) {
+        assign(id, technicianId, username, null);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"ticketCounts", "dashboardCounters"}, allEntries = true)
+    public void assign(Long id, Long technicianId, String username, Long expectedVersion) {
         User actor = findTechnician(username);
         Ticket ticket = get(id);
+        assertExpectedVersion(ticket, expectedVersion);
         assignTo(ticket, actor, technicianId);
         ticket.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         tickets.save(ticket);
+    }
+
+    private void assertExpectedVersion(Ticket ticket, Long expectedVersion) {
+        if (expectedVersion != null && !Objects.equals(expectedVersion, ticket.getVersion())) {
+            throw new TicketEditConflictException();
+        }
     }
 
     private void assignTo(Ticket ticket, User actor, Long technicianId) {

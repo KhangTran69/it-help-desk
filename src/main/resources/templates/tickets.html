@@ -4,7 +4,7 @@
 <body>
 <aside>
   <h2 class="brand"><i class="brand-mark"></i><span>IT Helpdesk</span></h2>
-  <nav><a href="/"><b class="nav-icon">⌂</b><span>Dashboard</span></a><a class="active" href="/tickets"><b class="nav-icon">▣</b><span>Tickets</span></a><a href="/assets"><b class="nav-icon">▤</b><span>Assets</span></a></nav>
+  <nav><a href="/"><b class="nav-icon" aria-hidden="true">⌂</b><span>Dashboard</span></a><a class="active" href="/tickets" aria-current="page"><b class="nav-icon" aria-hidden="true">▣</b><span>Tickets</span></a><a href="/assets"><b class="nav-icon" aria-hidden="true">▤</b><span>Assets</span></a></nav>
   <form class="signout" method="post" action="/logout"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><button class="link"><b class="nav-icon">↪</b><span>Sign out</span></button></form>
 </aside>
 <main class="content">
@@ -26,6 +26,6 @@
     <tr th:each="t : ${tickets.content}"><td th:text="${'#' + t.id}"></td><td><a class="title-link" th:href="@{'/tickets/' + ${t.id}}" th:text="${t.title}"></a></td><td><span class="badge" th:classappend="' ' + ${t.priority}" th:text="${t.priority}"></span></td><td th:text="${t.category}"></td><td th:text="${t.technician != null ? t.technician.fullName : 'Unassigned'}"></td><td><span class="badge" th:classappend="' ' + ${t.status}" th:text="${t.status}"></span></td><td th:text="${@phTime.dateTime(t.updatedAt)}"></td><td><a class="button secondary" th:href="@{'/tickets/' + ${t.id}}">Manage</a></td></tr>
     <tr th:if="${tickets.empty}"><td colspan="8" class="empty">No tickets found for these filters.</td></tr>
   </tbody></table></div>
-  <div class="pagination"><span th:text="|${tickets.totalElements} ticket(s) · page ${tickets.number + 1} of ${tickets.totalPages == 0 ? 1 : tickets.totalPages}|">0 tickets</span><span class="page-links"><a th:if="${tickets.hasPrevious()}" th:href="@{/tickets(q=${q},status=${selectedStatus},priority=${selectedPriority},category=${selectedCategory},technicianId=${selectedTechnicianId},unassigned=${unassigned},page=${tickets.number - 1},size=${size},sort=${sort},dir=${dir})}">← Previous</a><a th:if="${tickets.hasNext()}" th:href="@{/tickets(q=${q},status=${selectedStatus},priority=${selectedPriority},category=${selectedCategory},technicianId=${selectedTechnicianId},unassigned=${unassigned},page=${tickets.number + 1},size=${size},sort=${sort},dir=${dir})}">Next →</a></span></div>
+  <div class="pagination"><span th:text="|${tickets.totalElements} ticket(s) · page ${tickets.number + 1} of ${tickets.totalPages == 0 ? 1 : tickets.totalPages}|">0 tickets</span><span class="page-links"><a th:if="${tickets.hasPrevious()}" th:href="@{/tickets(q=${q},status=${selectedStatus},statusGroup=${statusGroup},priority=${selectedPriority},category=${selectedCategory},technicianId=${selectedTechnicianId},unassigned=${unassigned},page=${tickets.number - 1},size=${size},sort=${sort},dir=${dir})}">← Previous</a><a th:if="${tickets.hasNext()}" th:href="@{/tickets(q=${q},status=${selectedStatus},statusGroup=${statusGroup},priority=${selectedPriority},category=${selectedCategory},technicianId=${selectedTechnicianId},unassigned=${unassigned},page=${tickets.number + 1},size=${size},sort=${sort},dir=${dir})}">Next →</a></span></div>
 </main>
 </body></html>

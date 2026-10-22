@@ -11,6 +11,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,7 +37,7 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(summary = "Authenticate user and get JWT token")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -62,7 +65,11 @@ public class AuthController {
     }
 
     public static class LoginRequest {
+        @NotBlank
+        @Size(max = 80)
         private String username;
+        @NotBlank
+        @Size(max = 200)
         private String password;
 
         public String getUsername() { return username; }

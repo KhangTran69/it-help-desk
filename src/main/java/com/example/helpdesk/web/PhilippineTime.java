@@ -10,7 +10,7 @@ import java.time.format.DateTimeFormatter;
 @Component("phTime")
 public class PhilippineTime {
     private static final ZoneId ZONE = ZoneId.of("Asia/Manila");
-    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("MMM d, yyyy");
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("MMM d, yyyy 'PHT'");
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a 'PHT'");
 
     /** Database LocalDateTime values are kept as UTC wall-clock values; convert only for display. */

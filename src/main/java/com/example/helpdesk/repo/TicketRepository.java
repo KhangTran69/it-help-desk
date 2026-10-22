@@ -41,7 +41,8 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     @Query(value = "SELECT t FROM Ticket t WHERE " +
            "(:reporter IS NULL OR t.reporter = :reporter) AND " +
-           "(:status IS NULL OR t.status = :status) AND " +
+           "((:resolvedClosed = true AND t.status IN (com.example.helpdesk.model.TicketStatus.RESOLVED, com.example.helpdesk.model.TicketStatus.CLOSED)) OR " +
+           "(:resolvedClosed = false AND (:status IS NULL OR t.status = :status))) AND " +
            "(:priority IS NULL OR t.priority = :priority) AND " +
            "(:category IS NULL OR t.category = :category) AND " +
            "(:technician IS NULL OR t.technician = :technician) AND " +
@@ -49,7 +50,8 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
            "(:q IS NULL OR :q = '' OR LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%')) OR CAST(t.id AS string) = :q)",
            countQuery = "SELECT COUNT(t) FROM Ticket t WHERE " +
            "(:reporter IS NULL OR t.reporter = :reporter) AND " +
-           "(:status IS NULL OR t.status = :status) AND " +
+           "((:resolvedClosed = true AND t.status IN (com.example.helpdesk.model.TicketStatus.RESOLVED, com.example.helpdesk.model.TicketStatus.CLOSED)) OR " +
+           "(:resolvedClosed = false AND (:status IS NULL OR t.status = :status))) AND " +
            "(:priority IS NULL OR t.priority = :priority) AND " +
            "(:category IS NULL OR t.category = :category) AND " +
            "(:technician IS NULL OR t.technician = :technician) AND " +
@@ -58,5 +60,6 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     Page<Ticket> pageTickets(@Param("reporter") User reporter, @Param("status") TicketStatus status,
                              @Param("priority") Priority priority, @Param("category") Category category,
                              @Param("technician") User technician, @Param("unassigned") Boolean unassigned,
-                             @Param("q") String query, Pageable pageable);
+                             @Param("q") String query, @Param("resolvedClosed") boolean resolvedClosed,
+                             Pageable pageable);
 }

@@ -10,7 +10,7 @@
 <aside>
   <h2 class="brand"><i class="brand-mark"></i><span>IT Helpdesk</span></h2>
   <nav>
-    <a class="active" href="/"><b class="nav-icon">⌂</b><span>Dashboard</span></a>
+    <a class="active" href="/" aria-current="page"><b class="nav-icon" aria-hidden="true">⌂</b><span>Dashboard</span></a>
     <a href="/tickets"><b class="nav-icon">▣</b><span>Tickets</span></a>
     <a href="/assets"><b class="nav-icon">▤</b><span>Assets</span></a>
   </nav>
@@ -52,7 +52,7 @@
       <span>In Progress</span>
       <strong th:text="${progress}">0</strong>
     </a>
-    <a class="stat stat-link" href="/tickets?status=RESOLVED" aria-label="View resolved and closed tickets">
+    <a class="stat stat-link" href="/tickets?statusGroup=resolved-closed" aria-label="View resolved and closed tickets">
       <span>Resolved / Closed</span>
       <strong th:text="${resolvedClosed}">0</strong>
       <span class="small">Resolved and closed</span>
