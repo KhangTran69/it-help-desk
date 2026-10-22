@@ -6,6 +6,7 @@ import com.example.helpdesk.repo.TicketHistoryRepository;
 import com.example.helpdesk.repo.TicketCommentRepository;
 import com.example.helpdesk.repo.TicketRepository;
 import com.example.helpdesk.repo.UserRepository;
+import com.example.helpdesk.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +53,9 @@ class TicketWebSecurityIntegrationTest {
 
     @Autowired
     private PasswordEncoder encoder;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     private User employeeAlice;
     private User employeeBob;
@@ -122,13 +127,134 @@ class TicketWebSecurityIntegrationTest {
     }
 
     @Test
+    void browserSessionCookieCannotAuthenticateRestApiButBearerTokenCan() throws Exception {
+        var login = SecurityMockMvcRequestBuilders.formLogin("/login")
+                .user("username", "alice").password("password", "alice123");
+        var session = mockMvc.perform(login).andExpect(status().is3xxRedirection()).andReturn().getRequest().getSession(false);
+
+        mockMvc.perform(get("/api/tickets/my").session((org.springframework.mock.web.MockHttpSession) session))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.status").value(401));
+
+        mockMvc.perform(get("/api/tickets/my").header("Authorization", "Bearer " + jwtUtil.generateToken("alice")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
+    }
+
+    @Test
+    void apiValidatesJsonAndScopesEmployeeTicketDetailsAndComments() throws Exception {
+        String employeeToken = "Bearer " + jwtUtil.generateToken("alice");
+        String technicianToken = "Bearer " + jwtUtil.generateToken("charlie");
+
+        mockMvc.perform(post("/api/tickets").header("Authorization", employeeToken)
+                        .contentType("application/json").content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.message").exists());
+
+        mockMvc.perform(post("/api/tickets").header("Authorization", employeeToken)
+                        .contentType("application/json")
+                        .content("{\"title\":\"Employee API ticket\",\"description\":\"A valid API ticket description\",\"category\":\"OTHER\",\"priority\":\"MEDIUM\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.version").exists())
+                .andExpect(jsonPath("$.createdAt").exists());
+
+        mockMvc.perform(get("/api/tickets").header("Authorization", employeeToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/assets").header("Authorization", employeeToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/assets").header("Authorization", technicianToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/tickets/my/" + bobOpenTicket.getId()).header("Authorization", employeeToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(post("/api/tickets/" + aliceOpenTicket.getId() + "/comments")
+                        .header("Authorization", employeeToken).contentType("application/json")
+                        .content("{\"content\":\"Please update me\",\"internalNote\":true}"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/tickets/" + aliceOpenTicket.getId() + "/comments")
+                        .header("Authorization", employeeToken).contentType("application/json")
+                        .content("{\"content\":\"Public status update request\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/tickets/" + aliceOpenTicket.getId() + "/comments")
+                        .header("Authorization", technicianToken).contentType("application/json")
+                        .content("{\"content\":\"Internal troubleshooting detail\",\"internalNote\":true}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/tickets/" + aliceOpenTicket.getId() + "/comments").header("Authorization", employeeToken))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Public status update request")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Internal troubleshooting detail"))));
+
+        mockMvc.perform(get("/api/tickets/" + aliceOpenTicket.getId() + "/comments").header("Authorization", technicianToken))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Internal troubleshooting detail")));
+    }
+
+    @Test
+    void apiRequiresCurrentTicketVersionForStatusUpdates() throws Exception {
+        String technicianToken = "Bearer " + jwtUtil.generateToken("charlie");
+        Long originalVersion = aliceOpenTicket.getVersion();
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                                "/api/tickets/" + aliceOpenTicket.getId() + "/status")
+                        .header("Authorization", technicianToken)
+                        .param("status", "IN_PROGRESS").param("version", originalVersion.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                                "/api/tickets/" + aliceOpenTicket.getId() + "/status")
+                        .header("Authorization", technicianToken)
+                        .param("status", "RESOLVED").param("resolutionNotes", "Resolved")
+                        .param("version", originalVersion.toString()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409));
+    }
+
+    @Test
     @WithMockUser(username = "charlie", roles = "TECHNICIAN")
     void dashboardSummaryCardsNavigateToFilteredLists() throws Exception {
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("/tickets?status=OPEN")))
                 .andExpect(content().string(containsString("/tickets?status=IN_PROGRESS")))
+                .andExpect(content().string(containsString("/tickets?statusGroup=resolved-closed")))
                 .andExpect(content().string(containsString("/assets")));
+    }
+
+    @Test
+    @WithMockUser(username = "charlie", roles = "TECHNICIAN")
+    void resolvedClosedDashboardFilterShowsBothStatusesAndItsCount() throws Exception {
+        Ticket resolved = new Ticket();
+        resolved.setTitle("Dashboard resolved example");
+        resolved.setDescription("A resolved dashboard filter example");
+        resolved.setCategory(Category.OTHER);
+        resolved.setPriority(Priority.LOW);
+        resolved.setStatus(TicketStatus.RESOLVED);
+        resolved.setReporter(employeeAlice);
+        resolved.setResolutionNotes("Resolved for dashboard coverage");
+        ticketRepository.save(resolved);
+
+        Ticket closed = new Ticket();
+        closed.setTitle("Dashboard closed example");
+        closed.setDescription("A closed dashboard filter example");
+        closed.setCategory(Category.OTHER);
+        closed.setPriority(Priority.LOW);
+        closed.setStatus(TicketStatus.CLOSED);
+        closed.setReporter(employeeBob);
+        closed.setResolutionNotes("Closed for dashboard coverage");
+        ticketRepository.save(closed);
+
+        mockMvc.perform(get("/tickets").param("statusGroup", "resolved-closed"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("2 ticket(s)")))
+                .andExpect(content().string(containsString("Dashboard resolved example")))
+                .andExpect(content().string(containsString("Dashboard closed example")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Alice Open Ticket"))));
     }
 
     @Test
@@ -254,7 +380,8 @@ class TicketWebSecurityIntegrationTest {
     void technicianStatusUpdateIsVisibleInEmployeeProgress() throws Exception {
         var previousUpdatedAt = aliceOpenTicket.getUpdatedAt();
         mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/status")
-                        .with(csrf()).param("status", "IN_PROGRESS"))
+                        .with(csrf()).param("status", "IN_PROGRESS")
+                        .param("version", aliceOpenTicket.getVersion().toString()))
                 .andExpect(status().is3xxRedirection());
 
         Ticket updated = ticketRepository.findById(aliceOpenTicket.getId()).orElseThrow();
@@ -271,7 +398,8 @@ class TicketWebSecurityIntegrationTest {
     void technicianAssignmentRefreshesEmployeeVisibleLastUpdatedDate() throws Exception {
         var previousUpdatedAt = aliceOpenTicket.getUpdatedAt();
         mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/assign")
-                        .with(csrf()).param("technicianId", techCharlie.getId().toString()))
+                        .with(csrf()).param("technicianId", techCharlie.getId().toString())
+                        .param("version", aliceOpenTicket.getVersion().toString()))
                 .andExpect(status().is3xxRedirection());
 
         Ticket updated = ticketRepository.findById(aliceOpenTicket.getId()).orElseThrow();
@@ -353,7 +481,8 @@ class TicketWebSecurityIntegrationTest {
 
         mockMvc.perform(post("/tickets/" + bobOpenTicket.getId() + "/assign")
                         .with(csrf())
-                        .param("technicianId", techCharlie.getId().toString()))
+                        .param("technicianId", techCharlie.getId().toString())
+                        .param("version", bobOpenTicket.getVersion().toString()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/tickets/" + bobOpenTicket.getId()))
                 .andExpect(flash().attributeExists("success"));
@@ -389,7 +518,8 @@ class TicketWebSecurityIntegrationTest {
     @WithMockUser(username = "charlie", roles = "TECHNICIAN")
     void technicianCannotResolveOrCloseWithoutResolutionNotes() throws Exception {
         mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/status")
-                        .with(csrf()).param("status", "RESOLVED"))
+                        .with(csrf()).param("status", "RESOLVED")
+                        .param("version", aliceOpenTicket.getVersion().toString()))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString("Resolution notes are required")));
     }

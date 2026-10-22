@@ -33,7 +33,8 @@ Demo credentials (local only): employee / employee123 and technician / technicia
 - Ticket activity history, asset inventory management, duplicate asset-tag validation, and paginated asset search.
 - Timestamps are stored in UTC and shown in Philippine Time (PHT).
 - Dashboard metrics are cached with Redis; cache failures fall back gracefully.
-- Browser pages retain CSRF protection; REST endpoints support JWT bearer authentication.
+- Browser pages use session authentication with CSRF protection. REST endpoints run in a separate stateless security chain and accept JWT bearer tokens only; a browser session cookie cannot authenticate API requests.
+- REST ticket comments honor ownership and technician visibility. Ticket update, assignment, and status requests require the current version and reject stale edits with HTTP 409. REST timestamps use explicit UTC offsets; browser dates are labeled PHT.
 - OpenAPI/Swagger documentation and Spring Boot Actuator health and metrics endpoints.
 
 ## Architecture
@@ -67,6 +68,8 @@ CSRF remains enabled for browser forms. The API accepts bearer tokens from POST 
 - Metrics: /actuator/metrics (available metrics depend on the active environment)
 
 Send the returned token as Authorization: Bearer <token>. Technician API actions require a technician role; /api/tickets/my returns tickets scoped to the signed-in user.
+
+Ticket update requests must include the version returned in the ticket JSON. Status and assignment requests pass the same value as a `version` query parameter. Reload a ticket after HTTP 409 before retrying. Employees can use `/api/tickets/my/{id}` and the ticket comment endpoints only for their own requests; internal notes are visible to technicians only.
 
 ## Database Migrations
 

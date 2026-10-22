@@ -54,6 +54,7 @@ public class HomeController {
     @GetMapping("/tickets")
     String ticketList(@RequestParam(required = false) String q,
                       @RequestParam(required = false) TicketStatus status,
+                      @RequestParam(required = false) String statusGroup,
                       @RequestParam(required = false) Priority priority,
                       @RequestParam(required = false) Category category,
                       @RequestParam(required = false) Long technicianId,
@@ -64,7 +65,11 @@ public class HomeController {
                       @RequestParam(defaultValue = "desc") String dir,
                       Model model) {
         Pageable pageable = pageable(page, size, sort, dir, Set.of("updatedAt", "createdAt", "priority", "status", "title"), "updatedAt");
-        model.addAttribute("tickets", tickets.searchPage(status, priority, category, technicianId, unassigned, q, pageable));
+        boolean resolvedClosed = "resolved-closed".equals(statusGroup);
+        if (statusGroup != null && !resolvedClosed) throw new IllegalArgumentException("Unknown ticket status group");
+        model.addAttribute("tickets", tickets.searchPage(status, priority, category, technicianId, unassigned, q,
+                resolvedClosed, pageable));
+        model.addAttribute("statusGroup", resolvedClosed ? statusGroup : null);
         model.addAttribute("q", q);
         model.addAttribute("selectedStatus", status);
         model.addAttribute("selectedPriority", priority);
@@ -186,17 +191,19 @@ public class HomeController {
 
     @PostMapping("/tickets/{id}/status")
     String updateStatus(@PathVariable Long id, @RequestParam TicketStatus status,
-                        @RequestParam(required = false) String notes, Authentication authentication,
+                        @RequestParam(required = false) String notes, @RequestParam Long version,
+                        Authentication authentication,
                         RedirectAttributes redirect) {
-        tickets.updateStatus(id, status, notes, authentication.getName());
+        tickets.updateStatus(id, status, notes, authentication.getName(), version);
         redirect.addFlashAttribute("success", "Ticket status updated.");
         return "redirect:/tickets/" + id;
     }
 
     @PostMapping("/tickets/{id}/assign")
-    String assignTicket(@PathVariable Long id, @RequestParam Long technicianId, Authentication authentication,
+    String assignTicket(@PathVariable Long id, @RequestParam Long technicianId, @RequestParam Long version,
+                        Authentication authentication,
                         RedirectAttributes redirect) {
-        tickets.assign(id, technicianId, authentication.getName());
+        tickets.assign(id, technicianId, authentication.getName(), version);
         redirect.addFlashAttribute("success", "Ticket assigned successfully.");
         return "redirect:/tickets/" + id;
     }

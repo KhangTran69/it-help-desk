@@ -2,7 +2,11 @@ package com.example.helpdesk.api;
 
 import com.example.helpdesk.api.dto.PageResponse;
 import com.example.helpdesk.api.dto.TicketDto;
+import com.example.helpdesk.api.dto.TicketCommentDto;
+import com.example.helpdesk.dto.TicketEditForm;
 import com.example.helpdesk.model.Ticket;
+import com.example.helpdesk.model.TicketComment;
+import com.example.helpdesk.model.TicketStatus;
 import com.example.helpdesk.service.TicketService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,7 +23,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.time.ZoneOffset;
 import java.util.stream.Collectors;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @RestController
 @RequestMapping("/api/tickets")
@@ -84,8 +91,17 @@ public class TicketApiController {
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<TicketDto> updateTicket(@PathVariable Long id, @Valid @RequestBody TicketDto ticketDto,
                                                   Authentication authentication) {
-        Ticket ticket = convertToEntity(ticketDto);
-        Ticket updated = ticketService.updateTicket(id, ticket, authentication.getName());
+        if (ticketDto.getVersion() == null) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.PRECONDITION_REQUIRED,
+                    "Ticket version is required. Reload the ticket and include its version when updating.");
+        }
+        TicketEditForm form = new TicketEditForm();
+        form.setTitle(ticketDto.getTitle());
+        form.setDescription(ticketDto.getDescription());
+        form.setCategory(ticketDto.getCategory());
+        form.setPriority(ticketDto.getPriority());
+        form.setVersion(ticketDto.getVersion());
+        Ticket updated = ticketService.updateTicket(id, form, authentication.getName());
         return ResponseEntity.ok(convertToDto(updated));
     }
 
@@ -96,8 +112,16 @@ public class TicketApiController {
             @PathVariable Long id,
             @RequestParam String status,
             @RequestParam(required = false) String resolutionNotes,
+            @RequestParam Long version,
             Authentication authentication) {
-        Ticket updated = ticketService.updateStatus(id, status, resolutionNotes, authentication.getName());
+        TicketStatus nextStatus;
+        try {
+            nextStatus = TicketStatus.valueOf(status.toUpperCase(java.util.Locale.ROOT));
+        } catch (RuntimeException ex) {
+            throw new IllegalArgumentException("Status must be one of OPEN, IN_PROGRESS, RESOLVED, or CLOSED");
+        }
+        ticketService.updateStatus(id, nextStatus, resolutionNotes, authentication.getName(), version);
+        Ticket updated = ticketService.getTicketById(id);
         return ResponseEntity.ok(convertToDto(updated));
     }
 
@@ -105,13 +129,60 @@ public class TicketApiController {
     @Operation(summary = "Assign ticket to technician")
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<TicketDto> assignTicket(@PathVariable Long id, @RequestParam Long technicianId,
+                                                   @RequestParam Long version,
                                                    Authentication authentication) {
-        Ticket updated = ticketService.assignTicket(id, technicianId, authentication.getName());
+        ticketService.assign(id, technicianId, authentication.getName(), version);
+        Ticket updated = ticketService.getTicketById(id);
         return ResponseEntity.ok(convertToDto(updated));
     }
 
+    @GetMapping("/my/{id}")
+    @Operation(summary = "Get one of the current user's tickets")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<TicketDto> getMyTicket(@PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(convertToDto(ticketService.getMyTicket(id, authentication.getName())));
+    }
+
+    @GetMapping("/{id}/comments")
+    @Operation(summary = "List ticket comments visible to the current user")
+    public ResponseEntity<List<TicketCommentDto>> getComments(@PathVariable Long id, Authentication authentication) {
+        List<TicketComment> visible = isTechnician(authentication)
+                ? ticketService.allComments(id)
+                : ticketService.publicComments(id, authentication.getName());
+        return ResponseEntity.ok(visible.stream().map(this::toCommentDto).toList());
+    }
+
+    @PostMapping("/{id}/comments")
+    @Operation(summary = "Add a public comment or technician-only internal note")
+    public ResponseEntity<TicketCommentDto> addComment(@PathVariable Long id,
+                                                        @Valid @RequestBody CommentRequest request,
+                                                        Authentication authentication) {
+        TicketComment comment;
+        if (isTechnician(authentication)) {
+            comment = ticketService.addTechnicianComment(id, authentication.getName(), request.content(), request.internalNote());
+        } else {
+            if (request.internalNote()) {
+                throw new org.springframework.security.access.AccessDeniedException("Employees cannot add internal notes");
+            }
+            comment = ticketService.addEmployeeComment(id, authentication.getName(), request.content());
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(toCommentDto(comment));
+    }
+
+    private boolean isTechnician(Authentication authentication) {
+        return authentication.getAuthorities().stream().anyMatch(a -> "ROLE_TECHNICIAN".equals(a.getAuthority()));
+    }
+
+    private TicketCommentDto toCommentDto(TicketComment comment) {
+        return new TicketCommentDto(comment.getId(), comment.getAuthor().getFullName(), comment.getContent(),
+                comment.isInternalNote(), comment.getCreatedAt().atOffset(ZoneOffset.UTC));
+    }
+
+    public record CommentRequest(@NotBlank @Size(max = 5000) String content, boolean internalNote) {}
+
     @GetMapping("/my")
     @Operation(summary = "Get current user's tickets")
+    @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<PageResponse<TicketDto>> getMyTickets(
             Authentication authentication,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
@@ -155,8 +226,9 @@ public class TicketApiController {
         dto.setPriority(ticket.getPriority());
         dto.setStatus(ticket.getStatus());
         dto.setResolutionNotes(ticket.getResolutionNotes());
-        dto.setCreatedAt(ticket.getCreatedAt());
-        dto.setUpdatedAt(ticket.getUpdatedAt());
+        dto.setCreatedAt(ticket.getCreatedAt().atOffset(ZoneOffset.UTC));
+        dto.setUpdatedAt(ticket.getUpdatedAt().atOffset(ZoneOffset.UTC));
+        dto.setVersion(ticket.getVersion());
         if (ticket.getReporter() != null) {
             dto.setReporterName(ticket.getReporter().getFullName());
         }

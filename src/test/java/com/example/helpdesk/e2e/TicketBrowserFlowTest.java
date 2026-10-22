@@ -13,6 +13,7 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -91,11 +92,15 @@ class TicketBrowserFlowTest {
                         .stream().findFirst().orElse(null));
         new Select(assignmentSelect).selectByValue(technicianId);
         browser.findElement(By.cssSelector("form[action$='/assign'] button[type='submit']")).click();
-        new WebDriverWait(browser, Duration.ofSeconds(10)).until(driver -> driver.findElement(By.id("status")).isDisplayed());
+        new WebDriverWait(browser, Duration.ofSeconds(10))
+                .withMessage(() -> "Ticket status controls did not become ready at " + browser.getCurrentUrl())
+                .until(ExpectedConditions.elementToBeClickable(By.id("status")));
         new Select(browser.findElement(By.id("status"))).selectByValue("RESOLVED");
         browser.findElement(By.id("notes")).sendKeys("Provided and tested the required adapter.");
         browser.findElement(By.cssSelector("form[action$='/status'] button[type='submit']")).click();
-        assertTrue(browser.getPageSource().contains("RESOLVED"));
+        new WebDriverWait(browser, Duration.ofSeconds(10))
+                .withMessage(() -> "Resolved status was not displayed at " + browser.getCurrentUrl())
+                .until(ExpectedConditions.textToBePresentInElementLocated(By.cssSelector(".detail-meta"), "RESOLVED"));
     }
 
     private void login(String username, String password) {
