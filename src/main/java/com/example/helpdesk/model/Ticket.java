@@ -47,6 +47,18 @@ public class Ticket {
     @Column(nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now(ZoneOffset.UTC);
 
+    @Column(name = "sla_target_seconds", nullable = false)
+    private long slaTargetSeconds;
+
+    @Column(name = "sla_elapsed_seconds", nullable = false)
+    private long slaElapsedSeconds;
+
+    @Column(name = "sla_started_at")
+    private LocalDateTime slaStartedAt;
+
+    @Column(name = "sla_due_at")
+    private LocalDateTime slaDueAt;
+
     public Ticket() {}
 
     @PreUpdate
@@ -91,4 +103,18 @@ public class Ticket {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime v) { updatedAt = v; }
+
+    public long getSlaTargetSeconds() { return slaTargetSeconds; }
+    public void setSlaTargetSeconds(long value) { slaTargetSeconds = value; }
+    public long getSlaElapsedSeconds() { return slaElapsedSeconds; }
+    public void setSlaElapsedSeconds(long value) { slaElapsedSeconds = value; }
+    public LocalDateTime getSlaStartedAt() { return slaStartedAt; }
+    public void setSlaStartedAt(LocalDateTime value) { slaStartedAt = value; }
+    public LocalDateTime getSlaDueAt() { return slaDueAt; }
+    public void setSlaDueAt(LocalDateTime value) { slaDueAt = value; }
+    public boolean isSlaOverdue() {
+        long elapsed = slaElapsedSeconds;
+        if (slaStartedAt != null) elapsed += java.time.Duration.between(slaStartedAt, LocalDateTime.now(ZoneOffset.UTC)).getSeconds();
+        return slaTargetSeconds > 0 && elapsed >= slaTargetSeconds;
+    }
 }

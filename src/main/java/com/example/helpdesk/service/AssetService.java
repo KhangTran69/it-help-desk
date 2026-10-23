@@ -2,6 +2,7 @@ package com.example.helpdesk.service;
 
 import com.example.helpdesk.dto.AssetForm;
 import com.example.helpdesk.exception.ResourceNotFoundException;
+import com.example.helpdesk.exception.AssetEditConflictException;
 import com.example.helpdesk.metrics.BusinessMetrics;
 import com.example.helpdesk.model.Asset;
 import com.example.helpdesk.model.AssetStatus;
@@ -62,6 +63,7 @@ public class AssetService {
 
     @Transactional
     public Asset save(Asset a) {
+        boolean creating = a.getId() == null;
         if (a.getAssetTag() == null || a.getAssetTag().isBlank()) {
             throw new IllegalArgumentException("Asset tag is required");
         }
@@ -81,7 +83,7 @@ public class AssetService {
             throw new IllegalArgumentException("Retired assets cannot be assigned");
         }
         Asset saved = repo.save(a);
-        if (a.getId() == null) {
+        if (creating) {
             if (businessMetrics != null) businessMetrics.incrementAssetCreated();
         }
         return saved;
@@ -117,12 +119,17 @@ public class AssetService {
             }
         }
 
-        return repo.save(asset);
+        Asset saved = repo.save(asset);
+        if (businessMetrics != null) businessMetrics.incrementAssetCreated();
+        return saved;
     }
 
     @Transactional
     public Asset update(Long id, AssetForm form) {
         Asset existing = get(id);
+        if (form.getVersion() == null || !form.getVersion().equals(existing.getVersion())) {
+            throw new AssetEditConflictException();
+        }
         validate(form);
 
         String newTag = form.getAssetTag() != null ? form.getAssetTag().trim() : "";
@@ -163,7 +170,13 @@ public class AssetService {
 
     @Transactional
     public void unassign(Long id) {
+        unassign(id, get(id).getVersion());
+    }
+
+    @Transactional
+    public void unassign(Long id, Long expectedVersion) {
         Asset existing = get(id);
+        assertExpectedVersion(existing, expectedVersion);
         existing.setAssignedUser(null);
         if (existing.getStatus() == AssetStatus.ASSIGNED) {
             existing.setStatus(AssetStatus.AVAILABLE);
@@ -200,7 +213,13 @@ public class AssetService {
     }
 
     public Asset updateAsset(Long id, Asset asset) {
+        return updateAsset(id, asset, get(id).getVersion());
+    }
+
+    @Transactional
+    public Asset updateAsset(Long id, Asset asset, Long expectedVersion) {
         Asset existing = get(id);
+        assertExpectedVersion(existing, expectedVersion);
         existing.setAssetTag(asset.getAssetTag());
         existing.setName(asset.getName());
         existing.setCategory(asset.getCategory());
@@ -213,8 +232,20 @@ public class AssetService {
         return save(existing);
     }
 
+    private void assertExpectedVersion(Asset existing, Long expectedVersion) {
+        if (expectedVersion == null || !expectedVersion.equals(existing.getVersion())) {
+            throw new AssetEditConflictException();
+        }
+    }
+
     public Asset assignAsset(Long id, Long userId) {
+        return assignAsset(id, userId, get(id).getVersion());
+    }
+
+    @Transactional
+    public Asset assignAsset(Long id, Long userId, Long expectedVersion) {
         Asset existing = get(id);
+        assertExpectedVersion(existing, expectedVersion);
         User user = users.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         if (user.getRole() != Role.EMPLOYEE) throw new IllegalArgumentException("Assets can only be assigned to employees");
@@ -230,12 +261,23 @@ public class AssetService {
     }
 
     public Asset unassignAsset(Long id) {
-        unassign(id);
+        return unassignAsset(id, get(id).getVersion());
+    }
+
+    @Transactional
+    public Asset unassignAsset(Long id, Long expectedVersion) {
+        unassign(id, expectedVersion);
         return get(id);
     }
 
     public void deleteAsset(Long id) {
+        deleteAsset(id, get(id).getVersion());
+    }
+
+    @Transactional
+    public void deleteAsset(Long id, Long expectedVersion) {
         Asset existing = get(id);
+        assertExpectedVersion(existing, expectedVersion);
         repo.delete(existing);
     }
 }

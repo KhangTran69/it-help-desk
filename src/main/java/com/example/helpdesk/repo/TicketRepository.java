@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
     List<Ticket> findTop10ByOrderByUpdatedAtDesc();
@@ -21,6 +22,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     long countByTechnicianIsNull();
     long countByTechnician(User technician);
     Page<Ticket> findByReporter(User reporter, Pageable pageable);
+
+    @Query("select count(t) from Ticket t where t.slaDueAt is not null and t.slaDueAt < :now and t.status not in (com.example.helpdesk.model.TicketStatus.RESOLVED, com.example.helpdesk.model.TicketStatus.CLOSED)")
+    long countOverdue(@Param("now") LocalDateTime now);
 
     @Query("select t from Ticket t where lower(t.title) like lower(concat('%',:q,'%')) or cast(t.id as string)=:q order by t.updatedAt desc")
     List<Ticket> search(@Param("q") String query);
@@ -42,6 +46,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     @Query(value = "SELECT t FROM Ticket t WHERE " +
            "(:reporter IS NULL OR t.reporter = :reporter) AND " +
            "(:resolvedClosed = false OR t.status IN (com.example.helpdesk.model.TicketStatus.RESOLVED, com.example.helpdesk.model.TicketStatus.CLOSED)) AND " +
+           "(:overdue = false OR (t.slaDueAt IS NOT NULL AND t.slaDueAt < :now AND t.status NOT IN (com.example.helpdesk.model.TicketStatus.RESOLVED, com.example.helpdesk.model.TicketStatus.CLOSED))) AND " +
            "(:status IS NULL OR t.status = :status) AND " +
            "(:priority IS NULL OR t.priority = :priority) AND " +
            "(:category IS NULL OR t.category = :category) AND " +
@@ -51,6 +56,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
            countQuery = "SELECT COUNT(t) FROM Ticket t WHERE " +
            "(:reporter IS NULL OR t.reporter = :reporter) AND " +
            "(:resolvedClosed = false OR t.status IN (com.example.helpdesk.model.TicketStatus.RESOLVED, com.example.helpdesk.model.TicketStatus.CLOSED)) AND " +
+           "(:overdue = false OR (t.slaDueAt IS NOT NULL AND t.slaDueAt < :now AND t.status NOT IN (com.example.helpdesk.model.TicketStatus.RESOLVED, com.example.helpdesk.model.TicketStatus.CLOSED))) AND " +
            "(:status IS NULL OR t.status = :status) AND " +
            "(:priority IS NULL OR t.priority = :priority) AND " +
            "(:category IS NULL OR t.category = :category) AND " +
@@ -61,5 +67,6 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
                              @Param("priority") Priority priority, @Param("category") Category category,
                              @Param("technician") User technician, @Param("unassigned") Boolean unassigned,
                              @Param("q") String query, @Param("resolvedClosed") boolean resolvedClosed,
+                             @Param("overdue") boolean overdue, @Param("now") LocalDateTime now,
                              Pageable pageable);
 }

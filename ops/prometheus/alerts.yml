@@ -1,0 +1,19 @@
+groups:
+  - name: helpdesk-service
+    rules:
+      - alert: HelpdeskApplicationDown
+        expr: up{job="helpdesk"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Helpdesk application is unreachable
+          description: Prometheus has failed to scrape the application for two minutes.
+      - alert: HelpdeskHighServerErrorRate
+        expr: sum(rate(http_server_requests_seconds_count{job="helpdesk",status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job="helpdesk"}[5m])), 1) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Helpdesk server error rate is elevated
+          description: More than five percent of requests returned 5xx responses over ten minutes.

@@ -1,0 +1,53 @@
+name: Deploy staging to EC2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ vars.AWS_ROLE_ARN != '' && vars.AWS_REGION != '' && vars.EC2_INSTANCE_ID != '' && vars.ECR_REPOSITORY != '' && vars.APP_ENV_PARAMETER != '' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+      - name: Build and publish commit-tagged image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          SHA: ${{ github.sha }}
+        run: |
+          docker build --tag "$REGISTRY/$REPOSITORY:$SHA" .
+          docker push "$REGISTRY/$REPOSITORY:$SHA"
+      - name: Deploy through Systems Manager and verify health
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+          APP_ENV_PARAMETER: ${{ vars.APP_ENV_PARAMETER }}
+        run: |
+          script_b64="$(base64 -w0 scripts/deploy-ec2.sh)"
+          command="echo '$script_b64' | base64 -d | sudo bash -s -- '$IMAGE' '$AWS_REGION' '$APP_ENV_PARAMETER'"
+          parameters="$(jq -nc --arg command "$command" '{commands:[$command]}')"
+          command_id="$(aws ssm send-command --instance-ids "$EC2_INSTANCE_ID" --document-name AWS-RunShellScript --parameters "$parameters" --query 'Command.CommandId' --output text)"
+          for attempt in $(seq 1 36); do
+            status="$(aws ssm get-command-invocation --command-id "$command_id" --instance-id "$EC2_INSTANCE_ID" --query Status --output text 2>/dev/null || true)"
+            case "$status" in
+              Success) exit 0 ;;
+              Failed|Cancelled|TimedOut) aws ssm get-command-invocation --command-id "$command_id" --instance-id "$EC2_INSTANCE_ID"; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "Timed out waiting for staging deployment." >&2
+          exit 1

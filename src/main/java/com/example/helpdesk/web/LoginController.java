@@ -9,7 +9,12 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @Controller
 public class LoginController {
     @GetMapping("/login")
-    String login() { return "login"; }
+    String login(@org.springframework.web.bind.annotation.RequestParam(required = false) String throttled,
+                 @org.springframework.web.bind.annotation.RequestParam(required = false) String disabled, Model model) {
+        if (throttled != null) model.addAttribute("accountMessage", "Too many failed attempts. Try again in 10 minutes.");
+        if (disabled != null) model.addAttribute("accountMessage", "This account is disabled. Contact a technician for help.");
+        return "login";
+    }
 
     @GetMapping("/access-denied")
     @ResponseStatus(HttpStatus.FORBIDDEN)

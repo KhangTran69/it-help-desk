@@ -45,6 +45,7 @@ class AssetServiceTest {
         form.setName("MacBook Pro 16");
         form.setCategory("Laptop");
         form.setStatus(AssetStatus.AVAILABLE);
+        form.setVersion(0L);
 
         when(repo.existsByAssetTag("AST-1001")).thenReturn(false);
         when(repo.save(any(Asset.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -87,6 +88,7 @@ class AssetServiceTest {
         form.setName("Dell Latitude 5540 (Upgraded RAM)");
         form.setCategory("Laptop");
         form.setStatus(AssetStatus.AVAILABLE);
+        form.setVersion(0L);
 
         Asset updated = service.update(10L, form);
 
@@ -109,9 +111,27 @@ class AssetServiceTest {
         form.setName("Keyboard");
         form.setCategory("Peripherals");
         form.setStatus(AssetStatus.AVAILABLE);
+        form.setVersion(0L);
 
         assertThrows(IllegalArgumentException.class, () -> service.update(10L, form));
         verify(repo, never()).save(existing);
+    }
+
+    @Test
+    void staleAssetEditIsRejected() {
+        Asset existing = new Asset();
+        existing.setId(10L);
+        existing.setVersion(3L);
+        existing.setAssetTag("AST-OLD");
+        when(repo.findById(10L)).thenReturn(Optional.of(existing));
+        AssetForm form = new AssetForm();
+        form.setAssetTag("AST-OLD");
+        form.setName("Old laptop");
+        form.setCategory("Laptop");
+        form.setStatus(AssetStatus.AVAILABLE);
+        form.setVersion(2L);
+        assertThrows(com.example.helpdesk.exception.AssetEditConflictException.class, () -> service.update(10L, form));
+        verify(repo, never()).save(any(Asset.class));
     }
 
     @Test
@@ -122,6 +142,7 @@ class AssetServiceTest {
         form.setCategory("Server");
         form.setStatus(AssetStatus.RETIRED);
         form.setAssignedUserId(101L);
+        form.setVersion(0L);
 
         assertThrows(IllegalArgumentException.class, () -> service.create(form));
     }
@@ -146,6 +167,7 @@ class AssetServiceTest {
         form.setCategory("Tablet");
         form.setStatus(AssetStatus.AVAILABLE);
         form.setAssignedUserId(101L);
+        form.setVersion(0L);
 
         Asset updated = service.update(20L, form);
 
@@ -184,5 +206,21 @@ class AssetServiceTest {
         form.setStatus(AssetStatus.AVAILABLE);
 
         assertThrows(ResourceNotFoundException.class, () -> service.update(999L, form));
+    }
+
+    @Test
+    void saveCountsCreationEvenWhenRepositoryAssignsIdImmediately() {
+        com.example.helpdesk.metrics.BusinessMetrics metrics = mock(com.example.helpdesk.metrics.BusinessMetrics.class);
+        AssetService measuredService = new AssetService(repo, users, metrics);
+        Asset asset = new Asset();
+        asset.setAssetTag("AST-METRIC");
+        asset.setName("Monitor");
+        when(repo.existsByAssetTag("AST-METRIC")).thenReturn(false);
+        when(repo.save(asset)).thenAnswer(invocation -> {
+            asset.setId(77L);
+            return asset;
+        });
+        measuredService.save(asset);
+        verify(metrics).incrementAssetCreated();
     }
 }

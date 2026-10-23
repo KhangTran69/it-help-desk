@@ -41,6 +41,7 @@
 
   <form method="post" th:action="${isEdit} ? @{'/assets/' + ${asset.id} + '/edit'} : @{/assets}" th:object="${form}" class="card form-card">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+    <input th:if="${isEdit}" type="hidden" th:field="*{version}">
 
     <div class="form-grid">
       <label>

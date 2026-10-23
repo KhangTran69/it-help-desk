@@ -30,12 +30,19 @@ Demo credentials (local only): employee / employee123 and technician / technicia
 - Employees submit tickets, track only their own requests, follow an Open → In Progress → Resolved → Closed timeline, and add public comments.
 - Technicians search, filter, paginate, sort, assign, edit, and update tickets; internal notes remain private to technicians.
 - Resolution and closure require notes. Ticket edits use optimistic locking to reject stale updates rather than silently overwrite newer changes.
+- Asset edits, assignment, unassignment, and deletion carry a version and reject stale submissions with HTTP 409.
 - Ticket activity history, asset inventory management, duplicate asset-tag validation, and paginated asset search.
+- Elapsed-time SLA targets are configurable by priority. The clock starts when submitted, pauses in Resolved/Closed, resumes with the remaining allowance when reopened, and recalculates the remaining allowance when priority changes.
+- The technician dashboard links to an overdue-ticket view, with overdue filters retained while paging results.
+- Technicians can enable or disable accounts. Disabled accounts cannot sign in, existing browser sessions are ended on the next request, and issued JWTs stop authenticating immediately.
+- Browser and API login attempts are throttled after five failures per username and client address.
 - Timestamps are stored in UTC and shown in Philippine Time (PHT).
+- Requests receive a validated or generated `X-Request-ID`, included in responses and logs.
 - Dashboard metrics are cached with Redis; cache failures fall back gracefully.
 - Browser pages use session authentication with CSRF protection. REST endpoints run in a separate stateless security chain and accept JWT bearer tokens only; a browser session cookie cannot authenticate API requests.
 - REST ticket comments honor ownership and technician visibility. Ticket update, assignment, and status requests require the current version and reject stale edits with HTTP 409. REST timestamps use explicit UTC offsets; browser dates are labeled PHT.
 - OpenAPI/Swagger documentation and Spring Boot Actuator health and metrics endpoints.
+- Optional Prometheus and Grafana monitoring with request/error charts and alert rules.
 
 ## Architecture
 
@@ -77,6 +84,10 @@ Ticket update requests must include the version returned in the ticket JSON. Sta
 - V2__audit_fields.sql: audit field-diff columns.
 - V3__add_indexes.sql: indexes for common ticket, asset, user, and history queries.
 - V4__ticket_comments_and_optimistic_lock.sql: public/internal comments and ticket versioning.
+- V5__asset_version_and_ticket_sla.sql: asset optimistic locking and SLA clock fields.
+- V6__add_account_enabled_flag.sql: account access state.
+
+SLA defaults are 24 hours for High, 3 days for Medium, and 14 days for Low. They are elapsed-time targets, not business-hours targets. Override them with `SLA_HIGH_SECONDS`, `SLA_MEDIUM_SECONDS`, and `SLA_LOW_SECONDS`. Existing open tickets begin tracking after migration; existing resolved/closed tickets start paused.
 
 ## Tests
 
@@ -94,6 +105,18 @@ mvn verify -Dbrowser.tests=true
 
 Testcontainers exercises MySQL migrations and Redis cache invalidation when Docker is available. CI runs Maven verification, the browser flow, and a container image build.
 
+## Monitoring and Database Recovery
+
+The optional monitoring stack is available with `docker compose --profile observability up --build`. Grafana is bound to `127.0.0.1:3000`; set a unique `GRAFANA_ADMIN_PASSWORD` in `.env`. Prometheus scrapes the application only over the private Compose network. Alert rules cover application availability and elevated server errors.
+
+Create a SQL backup with `scripts/backup-mysql.sh [output.sql]`. Restore only into a confirmed target database with `scripts/restore-mysql.sh backup.sql`; the script asks for the word `RESTORE`. Practice against a disposable Compose project and isolated volume before relying on this procedure. Backups contain sensitive ticket and account data and must be stored encrypted with restricted access.
+
+## Staging Preparation
+
+Manual workflows are provided for tagged GHCR publishing and EC2 staging deployment through AWS Systems Manager. The deploy workflow remains skipped until its staging variables are configured. It expects EC2, ECR, SSM Parameter Store, an external MySQL/Redis endpoint, and a host HTTPS reverse proxy. Follow [the operations guide](docs/operations.md) before enabling it. No cloud deployment or public image has been performed by this repository change.
+
+The login throttle is process-local and resets on restart. It is suitable for this single-instance demo; multi-instance deployments need a shared rate-limit store such as Redis. Password reset email is not implemented because no mail provider is configured.
+
 ## Current Screenshots
 
 ![Employee ticket progress](docs/screenshots/employee-ticket-progress.png)
@@ -104,5 +127,8 @@ Testcontainers exercises MySQL migrations and Redis cache invalidation when Dock
 
 - No AWS or other hosted deployment is configured; CI builds the image but does not publish or deploy it.
 - Attachments and email notifications are not implemented.
-- JWT revocation/refresh-token flows and API rate limiting are not implemented.
+- JWT refresh/revocation lists are not implemented; access tokens expire after 15 minutes by default, and disabling an account immediately rejects its tokens.
+- Login throttling is in-memory and does not coordinate across multiple application replicas.
+- Password recovery, email notifications, attachments, and business-hours SLA calendars are not implemented.
+- Prometheus alert rules are examples; no alert receiver or on-call notification channel is configured.
 - This is a portfolio/demo application, not a production deployment.

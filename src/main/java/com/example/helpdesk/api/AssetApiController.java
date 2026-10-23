@@ -88,38 +88,43 @@ public class AssetApiController {
     @Operation(summary = "Update an existing asset")
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<AssetDto> updateAsset(@PathVariable Long id, @Valid @RequestBody AssetDto assetDto) {
+        if (assetDto.getVersion() == null) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.PRECONDITION_REQUIRED,
+                    "Asset version is required. Reload the asset and include its version when updating.");
+        }
         Asset asset = convertToEntity(assetDto);
-        Asset updated = assetService.updateAsset(id, asset);
+        Asset updated = assetService.updateAsset(id, asset, assetDto.getVersion());
         return ResponseEntity.ok(convertToDto(updated));
     }
 
     @PatchMapping("/{id}/assign")
     @Operation(summary = "Assign asset to user")
     @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<AssetDto> assignAsset(@PathVariable Long id, @RequestParam Long userId) {
-        Asset updated = assetService.assignAsset(id, userId);
+    public ResponseEntity<AssetDto> assignAsset(@PathVariable Long id, @RequestParam Long userId, @RequestParam Long version) {
+        Asset updated = assetService.assignAsset(id, userId, version);
         return ResponseEntity.ok(convertToDto(updated));
     }
 
     @PatchMapping("/{id}/unassign")
     @Operation(summary = "Unassign asset")
     @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<AssetDto> unassignAsset(@PathVariable Long id) {
-        Asset updated = assetService.unassignAsset(id);
+    public ResponseEntity<AssetDto> unassignAsset(@PathVariable Long id, @RequestParam Long version) {
+        Asset updated = assetService.unassignAsset(id, version);
         return ResponseEntity.ok(convertToDto(updated));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete an asset")
     @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<Void> deleteAsset(@PathVariable Long id) {
-        assetService.deleteAsset(id);
+    public ResponseEntity<Void> deleteAsset(@PathVariable Long id, @RequestParam Long version) {
+        assetService.deleteAsset(id, version);
         return ResponseEntity.noContent().build();
     }
 
     private AssetDto convertToDto(Asset asset) {
         AssetDto dto = new AssetDto();
         dto.setId(asset.getId());
+        dto.setVersion(asset.getVersion());
         dto.setAssetTag(asset.getAssetTag());
         dto.setModelName(asset.getName());
         dto.setCategory(asset.getCategory());

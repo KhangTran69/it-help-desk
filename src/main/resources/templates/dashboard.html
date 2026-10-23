@@ -35,6 +35,7 @@
       <p class="muted">Live overview of enterprise IT service requests and asset inventory.</p>
     </div>
     <div style="display:flex; gap:10px;">
+      <a th:if="${isTechnician}" class="button secondary" href="/users">Manage accounts</a>
       <a class="button" href="/tickets/new">＋ Create ticket</a>
       <a th:if="${isTechnician}" class="button secondary" href="/assets/new">＋ Add asset</a>
     </div>
@@ -79,6 +80,11 @@
       <span>My Active Assignments</span>
       <strong th:text="${myAssigned ?: 0}" style="color:#2563eb;">0</strong>
       <a th:href="@{/tickets(technicianId=${currentUser.id})}" class="small" style="color:var(--teal-dark); text-decoration:none; font-weight:600; display:inline-block; margin-top:6px;">View my queue →</a>
+    </div>
+    <div class="stat" style="border-left: 4px solid #dc2626;">
+      <span>Overdue SLAs</span>
+      <strong th:text="${overdue}" style="color:#dc2626;">0</strong>
+      <a href="/tickets?overdue=true" class="small" style="color:var(--teal-dark); text-decoration:none; font-weight:600; display:inline-block; margin-top:6px;">View overdue →</a>
     </div>
   </div>
 

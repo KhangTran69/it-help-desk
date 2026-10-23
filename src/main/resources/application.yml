@@ -13,7 +13,7 @@ spring:
     cache: true
 jwt:
   secret: ${JWT_SECRET:local-development-only-secret-not-for-deployment}
-  expiration: ${JWT_EXPIRATION:86400000}
+  expiration: ${JWT_EXPIRATION:900000}
 server:
   error:
     whitelabel:
@@ -22,7 +22,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: never
@@ -33,3 +33,9 @@ info:
   app:
     name: IT Helpdesk
     description: IT Help Desk and Asset Management System
+helpdesk:
+  sla:
+    targets:
+      low: ${SLA_LOW_SECONDS:1209600}
+      medium: ${SLA_MEDIUM_SECONDS:259200}
+      high: ${SLA_HIGH_SECONDS:86400}

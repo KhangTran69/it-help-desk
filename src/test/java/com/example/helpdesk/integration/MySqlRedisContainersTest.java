@@ -49,8 +49,10 @@ class MySqlRedisContainersTest {
 
     @Test
     void migrationsAndRedisDashboardCacheWorkWithRealServices() {
-        assertEquals(4, jdbc.queryForObject("SELECT MAX(version) FROM flyway_schema_history WHERE success = TRUE", Integer.class));
+        assertEquals(6, jdbc.queryForObject("SELECT MAX(version) FROM flyway_schema_history WHERE success = TRUE", Integer.class));
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'tickets' AND column_name = 'version'", Integer.class) > 0);
+        assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'assets' AND column_name = 'version'", Integer.class) > 0);
+        assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'tickets' AND column_name = 'sla_due_at'", Integer.class) > 0);
         redis.delete(java.util.List.of("ticketCounts::OPEN", "ticketCounts::IN_PROGRESS"));
         long openBefore = tickets.countByStatus(TicketStatus.OPEN);
         long inProgressBefore = tickets.countByStatus(TicketStatus.IN_PROGRESS);
@@ -92,18 +94,19 @@ class MySqlRedisContainersTest {
             tickets.save(ticket);
         }
 
-        var combined = tickets.pageTickets(employee, null, null, null, null, null, null, true, PageRequest.of(0, 10));
+        var combined = tickets.pageTickets(employee, null, null, null, null, null, null, true, false,
+                java.time.LocalDateTime.now(java.time.ZoneOffset.UTC), PageRequest.of(0, 10));
         assertEquals(2, combined.getTotalElements());
         assertTrue(combined.getContent().stream().allMatch(ticket ->
                 ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CLOSED));
 
         var resolvedOnly = tickets.pageTickets(employee, TicketStatus.RESOLVED, null, null, null, null, null,
-                true, PageRequest.of(0, 10));
+                true, false, java.time.LocalDateTime.now(java.time.ZoneOffset.UTC), PageRequest.of(0, 10));
         assertEquals(1, resolvedOnly.getTotalElements());
         assertEquals(TicketStatus.RESOLVED, resolvedOnly.getContent().get(0).getStatus());
 
         var incompatibleStatus = tickets.pageTickets(employee, TicketStatus.OPEN, null, null, null, null, null,
-                true, PageRequest.of(0, 10));
+                true, false, java.time.LocalDateTime.now(java.time.ZoneOffset.UTC), PageRequest.of(0, 10));
         assertEquals(0, incompatibleStatus.getTotalElements());
     }
 }

@@ -28,6 +28,8 @@ public class TicketDto {
     private String reporterName;
     private String assignedTechnicianName;
     private Long version;
+    private OffsetDateTime slaDueAt;
+    private boolean slaOverdue;
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -54,4 +56,8 @@ public class TicketDto {
     public void setAssignedTechnicianName(String assignedTechnicianName) { this.assignedTechnicianName = assignedTechnicianName; }
     public Long getVersion() { return version; }
     public void setVersion(Long version) { this.version = version; }
+    public OffsetDateTime getSlaDueAt() { return slaDueAt; }
+    public void setSlaDueAt(OffsetDateTime slaDueAt) { this.slaDueAt = slaDueAt; }
+    public boolean isSlaOverdue() { return slaOverdue; }
+    public void setSlaOverdue(boolean slaOverdue) { this.slaOverdue = slaOverdue; }
 }
