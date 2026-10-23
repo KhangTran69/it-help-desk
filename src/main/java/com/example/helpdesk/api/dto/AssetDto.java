@@ -8,6 +8,7 @@ import java.time.LocalDate;
 
 public class AssetDto {
     private Long id;
+    private Long version;
     @NotBlank(message = "Asset tag is required")
     @Size(min = 3, max = 50, message = "Asset tag must be between 3 and 50 characters")
     private String assetTag;
@@ -25,6 +26,8 @@ public class AssetDto {
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
     public String getAssetTag() { return assetTag; }
     public void setAssetTag(String assetTag) { this.assetTag = assetTag; }
     public String getModelName() { return modelName; }

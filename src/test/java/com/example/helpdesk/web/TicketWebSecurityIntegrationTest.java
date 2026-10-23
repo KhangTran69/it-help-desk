@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -124,6 +125,82 @@ class TicketWebSecurityIntegrationTest {
                 .andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/assets").param("sortBy", "assignedUser.password"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void disablingAccountRejectsExistingBrowserSessionAndJwt() throws Exception {
+        var loginResult = mockMvc.perform(SecurityMockMvcRequestBuilders.formLogin()
+                        .user("alice").password("alice123"))
+                .andExpect(status().is3xxRedirection()).andReturn();
+        org.springframework.mock.web.MockHttpSession session =
+                (org.springframework.mock.web.MockHttpSession) loginResult.getRequest().getSession(false);
+        assertNotNull(session);
+        String token = jwtUtil.generateToken("alice");
+
+        employeeAlice.setEnabled(false);
+        userRepository.save(employeeAlice);
+
+        mockMvc.perform(get("/my-tickets").session(session))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login?disabled"));
+        mockMvc.perform(get("/api/tickets/my").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/auth/login").contentType("application/json")
+                        .content("{\"username\":\"alice\",\"password\":\"alice123\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void browserAndApiLoginRoutesThrottleRepeatedFailures() throws Exception {
+        String apiUser = "api-throttle-check";
+        String apiBody = "{\"username\":\"" + apiUser + "\",\"password\":\"wrong-password\"}";
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/api/auth/login").contentType("application/json").content(apiBody))
+                    .andExpect(status().isUnauthorized());
+        }
+        mockMvc.perform(post("/api/auth/login").contentType("application/json").content(apiBody))
+                .andExpect(status().isTooManyRequests());
+
+        String browserUser = "browser-throttle-check";
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/login").with(csrf()).param("username", browserUser).param("password", "wrong-password"))
+                    .andExpect(status().is3xxRedirection());
+        }
+        mockMvc.perform(post("/login").with(csrf()).param("username", browserUser).param("password", "wrong-password"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login?throttled"));
+    }
+
+    @Test
+    @WithMockUser(username = "alice", roles = "EMPLOYEE")
+    void employeesCannotOpenAccountAdministration() throws Exception {
+        mockMvc.perform(get("/users")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "charlie", roles = "TECHNICIAN")
+    void overdueFilterShowsOnlyActiveTicketsPastTheirSla() throws Exception {
+        aliceOpenTicket.setSlaTargetSeconds(3600);
+        aliceOpenTicket.setSlaElapsedSeconds(3601);
+        aliceOpenTicket.setSlaDueAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(1));
+        ticketRepository.save(aliceOpenTicket);
+
+        mockMvc.perform(get("/tickets").param("overdue", "true"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Alice Open Ticket")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Bob Open Ticket"))))
+                .andExpect(content().string(containsString("Overdue SLA only")));
+        assertEquals(1, ticketRepository.countOverdue(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)));
+    }
+
+    @Test
+    void assetApiRejectsStaleVersion() throws Exception {
+        String technicianToken = "Bearer " + jwtUtil.generateToken("charlie");
+        mockMvc.perform(put("/api/assets/" + laptopAsset.getId())
+                        .header("Authorization", technicianToken).contentType("application/json")
+                        .content("{\"assetTag\":\"AST-TEST-01\",\"modelName\":\"ThinkPad T14\",\"category\":\"Laptop\",\"status\":\"AVAILABLE\",\"version\":-1}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409));
     }
 
     @Test
@@ -550,6 +627,7 @@ class TicketWebSecurityIntegrationTest {
                         .param("name", "ThinkPad T14 Gen 3 (Repaired)")
                         .param("category", "Laptop")
                         .param("status", "AVAILABLE")
+                        .param("version", laptopAsset.getVersion().toString())
                         .param("notes", "Screen replacement complete"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/assets"))

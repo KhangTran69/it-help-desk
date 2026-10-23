@@ -10,6 +10,7 @@ import java.time.LocalDate;
 
 public class AssetForm {
     private Long id;
+    private Long version;
 
     @NotBlank(message = "Asset tag is required")
     @Size(max = 30, message = "Asset tag cannot exceed 30 characters")
@@ -40,6 +41,7 @@ public class AssetForm {
     public static AssetForm fromAsset(Asset asset) {
         AssetForm f = new AssetForm();
         f.setId(asset.getId());
+        f.setVersion(asset.getVersion());
         f.setAssetTag(asset.getAssetTag());
         f.setName(asset.getName());
         f.setCategory(asset.getCategory());
@@ -65,6 +67,8 @@ public class AssetForm {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 
     public String getAssetTag() { return assetTag; }
     public void setAssetTag(String assetTag) { this.assetTag = assetTag; }

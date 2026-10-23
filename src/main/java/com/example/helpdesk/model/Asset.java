@@ -12,6 +12,10 @@ public class Asset {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(nullable = false)
+    private Long version = 0L;
+
     @Column(name = "asset_tag", unique = true, nullable = false)
     private String assetTag;
 
@@ -48,6 +52,8 @@ public class Asset {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Long getVersion() { return version; }
+    public void setVersion(Long value) { version = value; }
 
     public String getAssetTag() { return assetTag; }
     public void setAssetTag(String v) { assetTag = v; }

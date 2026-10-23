@@ -2,6 +2,7 @@ package com.example.helpdesk.web;
 
 import com.example.helpdesk.exception.ResourceNotFoundException;
 import com.example.helpdesk.exception.TicketEditConflictException;
+import com.example.helpdesk.exception.AssetEditConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -111,6 +112,15 @@ public class GlobalExceptionHandler {
     public String handleEditConflict(TicketEditConflictException ex, Model model) {
         model.addAttribute("status", 409);
         model.addAttribute("error", "Ticket changed by another technician");
+        model.addAttribute("message", ex.getMessage());
+        return "error";
+    }
+
+    @ExceptionHandler(AssetEditConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public String handleAssetEditConflict(AssetEditConflictException ex, Model model) {
+        model.addAttribute("status", 409);
+        model.addAttribute("error", "Asset changed by another technician");
         model.addAttribute("message", ex.getMessage());
         return "error";
     }

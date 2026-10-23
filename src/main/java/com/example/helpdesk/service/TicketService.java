@@ -33,43 +33,53 @@ public class TicketService {
     private final TicketCommentRepository comments;
     private final ApplicationEventPublisher eventPublisher;
     private final BusinessMetrics businessMetrics;
+    private final SlaPolicy slaPolicy;
 
     @Autowired
     public TicketService(TicketRepository tickets, UserRepository users, TicketHistoryRepository history,
                          TicketCommentRepository comments, ApplicationEventPublisher eventPublisher,
-                         BusinessMetrics businessMetrics) {
+                         BusinessMetrics businessMetrics, SlaPolicy slaPolicy) {
         this.tickets = tickets;
         this.users = users;
         this.history = history;
         this.comments = comments;
         this.eventPublisher = eventPublisher;
         this.businessMetrics = businessMetrics;
+        this.slaPolicy = slaPolicy;
     }
 
     public TicketService(TicketRepository tickets, UserRepository users, TicketHistoryRepository history) {
-        this(tickets, users, history, null, null, null);
+        this(tickets, users, history, null, null, null, new SlaPolicy(java.time.Clock.systemUTC(), 1209600, 259200, 86400));
     }
 
     public TicketService(TicketRepository tickets, UserRepository users, TicketHistoryRepository history,
                          TicketCommentRepository comments) {
-        this(tickets, users, history, comments, null, null);
+        this(tickets, users, history, comments, null, null, new SlaPolicy(java.time.Clock.systemUTC(), 1209600, 259200, 86400));
     }
 
     @Transactional(readOnly = true)
     public Page<Ticket> searchPage(TicketStatus status, Priority priority, Category category,
                                    Long technicianId, Boolean unassigned, String query, Pageable pageable) {
-        return searchPage(status, priority, category, technicianId, unassigned, query, false, pageable);
+        return searchPage(status, priority, category, technicianId, unassigned, query, false, false, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Ticket> searchPage(TicketStatus status, Priority priority, Category category,
                                    Long technicianId, Boolean unassigned, String query,
                                    boolean resolvedClosed, Pageable pageable) {
+        return searchPage(status, priority, category, technicianId, unassigned, query, resolvedClosed, false, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Ticket> searchPage(TicketStatus status, Priority priority, Category category,
+                                   Long technicianId, Boolean unassigned, String query,
+                                   boolean resolvedClosed, boolean overdue, Pageable pageable) {
         User technician = technicianId == null ? null : users.findById(technicianId)
                 .orElseThrow(() -> new ResourceNotFoundException("Technician not found"));
         if (technician != null && technician.getRole() != Role.TECHNICIAN) throw new IllegalArgumentException("Assignee must be a technician");
         return tickets.pageTickets(null, status, priority, category, technician, unassigned,
-                query == null || query.isBlank() ? null : query.trim(), resolvedClosed, pageable);
+                query == null || query.isBlank() ? null : query.trim(), resolvedClosed, overdue,
+                LocalDateTime.now(ZoneOffset.UTC), pageable);
     }
 
     @Transactional(readOnly = true)
@@ -102,6 +112,7 @@ public class TicketService {
         ticket.setDescription(ticket.getDescription().trim());
         ticket.setReporter(reporter);
         ticket.setStatus(TicketStatus.OPEN);
+        slaPolicy.start(ticket);
         Ticket saved = tickets.save(ticket);
         recordHistory(saved, reporter, "CREATED", "Ticket submitted");
         if (businessMetrics != null) businessMetrics.incrementTicketCreated();
@@ -204,6 +215,7 @@ public class TicketService {
         saveChange(ticket, actor, "description", ticket.getDescription(), form.getDescription());
         saveChange(ticket, actor, "category", value(ticket.getCategory()), value(form.getCategory()));
         saveChange(ticket, actor, "priority", value(ticket.getPriority()), value(form.getPriority()));
+        slaPolicy.priorityChanged(ticket, form.getPriority());
         ticket.setTitle(form.getTitle().trim());
         ticket.setDescription(form.getDescription().trim());
         ticket.setCategory(form.getCategory());
@@ -301,6 +313,7 @@ public class TicketService {
         TicketStatus previous = ticket.getStatus();
         String cleanNotes = notes == null ? null : notes.trim();
         if (status != previous) {
+            slaPolicy.statusChanged(ticket, previous, status);
             recordHistory(ticket, actor, "STATUS_CHANGED", "Status updated", "status", value(previous), value(status));
             if (status == TicketStatus.RESOLVED && businessMetrics != null) {
                 businessMetrics.incrementTicketResolved();
@@ -358,6 +371,9 @@ public class TicketService {
 
     @Cacheable(cacheNames = "dashboardCounters", key = "'unassigned'")
     public long countUnassigned() { return tickets.countByTechnicianIsNull(); }
+
+    @Cacheable(cacheNames = "dashboardCounters", key = "'overdue'")
+    public long countOverdue() { return tickets.countOverdue(LocalDateTime.now(ZoneOffset.UTC)); }
 
     @Cacheable(cacheNames = "dashboardCounters", key = "'assigned:' + #technician.id")
     public long countAssignedTo(User technician) { return tickets.countByTechnician(technician); }

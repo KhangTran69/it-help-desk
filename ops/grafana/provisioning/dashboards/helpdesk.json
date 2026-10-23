@@ -1,0 +1,13 @@
+{
+  "title": "IT Helpdesk",
+  "uid": "it-helpdesk",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {"id": 1, "title": "Request rate", "type": "timeseries", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}, "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{job=\"helpdesk\"}[5m]))", "legendFormat": "requests/sec"}]},
+    {"id": 2, "title": "Server errors", "type": "timeseries", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}, "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{job=\"helpdesk\",status=~\"5..\"}[5m]))", "legendFormat": "5xx/sec"}]},
+    {"id": 3, "title": "Ticket creation", "type": "timeseries", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}, "targets": [{"expr": "helpdesk_tickets_created_total", "legendFormat": "tickets"}]},
+    {"id": 4, "title": "Asset creation", "type": "timeseries", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}, "targets": [{"expr": "helpdesk_assets_created_total", "legendFormat": "assets"}]}
+  ]
+}

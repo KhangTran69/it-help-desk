@@ -2,6 +2,7 @@ package com.example.helpdesk.api;
 
 import com.example.helpdesk.exception.ResourceNotFoundException;
 import com.example.helpdesk.exception.TicketEditConflictException;
+import com.example.helpdesk.exception.AssetEditConflictException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -81,7 +82,7 @@ public class ApiExceptionHandler {
         return error(HttpStatus.CONFLICT, "A record conflicts with an existing unique value.");
     }
 
-    @ExceptionHandler({TicketEditConflictException.class, ObjectOptimisticLockingFailureException.class,
+    @ExceptionHandler({TicketEditConflictException.class, AssetEditConflictException.class, ObjectOptimisticLockingFailureException.class,
             OptimisticLockException.class})
     ResponseEntity<Map<String, Object>> staleUpdate(Exception ex) {
         return error(HttpStatus.CONFLICT, "This record changed since you loaded it. Reload it before saving again.");

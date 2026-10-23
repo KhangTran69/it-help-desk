@@ -229,6 +229,8 @@ public class TicketApiController {
         dto.setCreatedAt(ticket.getCreatedAt().atOffset(ZoneOffset.UTC));
         dto.setUpdatedAt(ticket.getUpdatedAt().atOffset(ZoneOffset.UTC));
         dto.setVersion(ticket.getVersion());
+        dto.setSlaDueAt(ticket.getSlaDueAt() == null ? null : ticket.getSlaDueAt().atOffset(ZoneOffset.UTC));
+        dto.setSlaOverdue(ticket.isSlaOverdue());
         if (ticket.getReporter() != null) {
             dto.setReporterName(ticket.getReporter().getFullName());
         }
