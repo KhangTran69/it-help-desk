@@ -252,9 +252,22 @@ class TicketWebSecurityIntegrationTest {
         mockMvc.perform(get("/tickets").param("statusGroup", "resolved-closed"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("2 ticket(s)")))
+                .andExpect(content().string(containsString("name=\"statusGroup\" value=\"resolved-closed\"")))
                 .andExpect(content().string(containsString("Dashboard resolved example")))
                 .andExpect(content().string(containsString("Dashboard closed example")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Alice Open Ticket"))));
+
+        mockMvc.perform(get("/tickets").param("statusGroup", "resolved-closed").param("status", "RESOLVED"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("1 ticket(s)")))
+                .andExpect(content().string(containsString("Dashboard resolved example")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Dashboard closed example"))));
+
+        mockMvc.perform(get("/tickets").param("statusGroup", "resolved-closed").param("status", "OPEN"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("0 ticket(s)")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Dashboard resolved example"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Dashboard closed example"))));
     }
 
     @Test

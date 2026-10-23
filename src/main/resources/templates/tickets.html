@@ -12,6 +12,7 @@
   <div class="page-head"><div><p class="eyebrow">SERVICE DESK</p><h1>Support tickets</h1><p class="muted">Track, search, and manage employee support requests.</p></div><a class="button" href="/tickets/new">＋ Create ticket</a></div>
   <div th:if="${success}" class="notice success" role="status" th:text="${success}"></div>
   <form class="toolbar filter-form card" method="get" action="/tickets">
+    <input th:if="${statusGroup != null}" type="hidden" name="statusGroup" th:value="${statusGroup}">
     <select name="sort" aria-label="Sort tickets"><option value="updatedAt" th:selected="${sort == 'updatedAt'}">Sort: updated</option><option value="createdAt" th:selected="${sort == 'createdAt'}">Sort: submitted</option><option value="title" th:selected="${sort == 'title'}">Sort: subject</option><option value="priority" th:selected="${sort == 'priority'}">Sort: priority</option><option value="status" th:selected="${sort == 'status'}">Sort: status</option></select><select name="dir" aria-label="Sort direction"><option value="desc" th:selected="${dir == 'desc'}">Descending</option><option value="asc" th:selected="${dir == 'asc'}">Ascending</option></select>
     <input name="q" placeholder="Search tickets by title, description, or ID" th:value="${q}">
     <select name="status" aria-label="Status"><option value="">Status: All</option><option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${s == selectedStatus}"></option></select>
