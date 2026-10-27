@@ -1,0 +1,3 @@
+# Test-only signing key. Production configuration still requires JWT_SECRET.
+jwt:
+  secret: test-only-jwt-signing-secret-at-least-32-bytes

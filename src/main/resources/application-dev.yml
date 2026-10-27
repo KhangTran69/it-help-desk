@@ -21,4 +21,4 @@ logging:
   level:
     com.example.helpdesk: DEBUG
 jwt:
-  secret: ${JWT_SECRET:local-development-only-secret-not-for-deployment}
+  secret: ${JWT_SECRET:}

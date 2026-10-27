@@ -10,6 +10,8 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci-only-jwt-signing-secret-at-least-32-bytes
     steps:
       - name: Check out source
         uses: actions/checkout@v4

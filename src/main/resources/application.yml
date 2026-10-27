@@ -12,7 +12,7 @@ spring:
   thymeleaf:
     cache: true
 jwt:
-  secret: ${JWT_SECRET:local-development-only-secret-not-for-deployment}
+  secret: ${JWT_SECRET:}
   expiration: ${JWT_EXPIRATION:900000}
 server:
   error:
@@ -22,7 +22,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info
   endpoint:
     health:
       show-details: never
