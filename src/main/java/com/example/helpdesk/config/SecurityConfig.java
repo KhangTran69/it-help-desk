@@ -97,7 +97,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/css/**", "/login", "/register", "/error",
                                 "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/webjars/**").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                        .requestMatchers("/actuator/prometheus").hasIpAddress("172.16.0.0/12")
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/assets", "/assets/**").hasRole("TECHNICIAN")
                         .requestMatchers("/users", "/users/**").hasRole("TECHNICIAN")
                         .requestMatchers("/my-tickets", "/my-tickets/**").hasRole("EMPLOYEE")

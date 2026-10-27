@@ -1,9 +1,16 @@
 package com.example.helpdesk.security;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Per-process login throttle. A shared store is required to coordinate multiple app instances. */
@@ -14,13 +21,27 @@ public class LoginAttemptService {
     private static final long BLOCK_MILLIS = Duration.ofMinutes(10).toMillis();
     private final ConcurrentHashMap<String, State> attempts = new ConcurrentHashMap<>();
     private final Clock clock;
+    private final StringRedisTemplate redis;
+    private final boolean sharedStore;
 
+    @Autowired
+    public LoginAttemptService(Clock clock, StringRedisTemplate redis,
+                               @Value("${helpdesk.login-throttle.shared-store:false}") boolean sharedStore) {
+        this.clock = clock;
+        this.redis = redis;
+        this.sharedStore = sharedStore;
+    }
+
+    /** In-memory constructor retained for isolated unit tests and local callers. */
     public LoginAttemptService(Clock clock) {
         this.clock = clock;
+        this.redis = null;
+        this.sharedStore = false;
     }
 
     public boolean isBlocked(String username, String remoteAddress) {
         String key = key(username, remoteAddress);
+        if (sharedStore) return Boolean.TRUE.equals(redis.hasKey("helpdesk:login:blocked:" + key));
         long now = clock.millis();
         State state = attempts.get(key);
         if (state == null) return false;
@@ -33,6 +54,15 @@ public class LoginAttemptService {
 
     public void recordFailure(String username, String remoteAddress) {
         String key = key(username, remoteAddress);
+        if (sharedStore) {
+            String failureKey = "helpdesk:login:failures:" + key;
+            Long failures = redis.opsForValue().increment(failureKey);
+            if (failures != null && failures == 1L) redis.expire(failureKey, Duration.ofMinutes(15));
+            if (failures != null && failures >= MAX_FAILURES) {
+                redis.opsForValue().set("helpdesk:login:blocked:" + key, "1", Duration.ofMinutes(10));
+            }
+            return;
+        }
         long now = clock.millis();
         attempts.compute(key, (ignored, current) -> {
             State state = current == null || now - current.windowStarted > WINDOW_MILLIS ? new State(now) : current;
@@ -46,13 +76,26 @@ public class LoginAttemptService {
     }
 
     public void recordSuccess(String username, String remoteAddress) {
-        attempts.remove(key(username, remoteAddress));
+        String key = key(username, remoteAddress);
+        if (sharedStore) {
+            redis.delete(java.util.List.of(
+                    "helpdesk:login:failures:" + key,
+                    "helpdesk:login:blocked:" + key));
+        } else {
+            attempts.remove(key);
+        }
     }
 
     private String key(String username, String remoteAddress) {
         String cleanName = username == null ? "" : username.trim().toLowerCase(java.util.Locale.ROOT);
         String cleanAddress = remoteAddress == null ? "unknown" : remoteAddress;
-        return cleanName + "@" + cleanAddress;
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest((cleanName + "@" + cleanAddress).getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
     }
 
     private static final class State {

@@ -32,7 +32,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: when-authorized
@@ -40,3 +40,6 @@ logging:
   level:
     root: INFO
     com.example: INFO
+helpdesk:
+  login-throttle:
+    shared-store: ${LOGIN_THROTTLE_SHARED_STORE:true}
