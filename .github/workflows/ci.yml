@@ -25,3 +25,5 @@ jobs:
         run: mvn --batch-mode --no-transfer-progress verify -Dbrowser.tests=true
       - name: Build container image
         run: docker build --tag it-helpdesk:ci .
+      - name: Run Compose integration smoke check
+        run: bash scripts/compose-smoke.sh
