@@ -12,7 +12,7 @@
   <nav th:if="${isTechnician}">
     <a href="/"><b class="nav-icon">⌂</b><span>Dashboard</span></a>
     <a href="/tickets"><b class="nav-icon">▣</b><span>Tickets</span></a>
-    <a href="/assets"><b class="nav-icon">▤</b><span>Assets</span></a>
+    <a href="/assets"><b class="nav-icon">▤</b><span>Assets</span></a><a href="/notifications"><b class="nav-icon" aria-hidden="true">◔</b><span>Notifications</span></a>
   </nav>
   <nav th:unless="${isTechnician}"><a href="/tickets/new"><b class="nav-icon">＋</b><span>Create ticket</span></a></nav>
 </aside>

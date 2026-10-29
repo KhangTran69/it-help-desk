@@ -18,6 +18,18 @@ Restore only into a disposable or explicitly selected target database. The resto
 
 The repository change adds the scripts but does not claim a successful recovery drill against a production database. To practice safely, use a separate Compose project name and a fresh named volume, insert fictional data, back it up, recreate that disposable database, restore, and compare the records.
 
+### Recovery drill record (2026-10-29, disposable Compose projects)
+
+A full drill was performed against two throwaway MySQL 8 containers (`docker compose -p itdrill` for the source, `-p itdrill-restore` for the fresh target, both with isolated named volumes):
+
+1. Schema V1–V7 applied and fictional rows inserted (2 users, 2 tickets, 1 comment, 1 history row, 1 notification, and a `ticket_attachments` row with binary content `DEADBEEF017700`).
+2. `mysqldump --single-transaction --routines --triggers` produced an 11 KB dump.
+3. The dump was imported into the fresh target container.
+4. Comparison query confirmed every table matched, including the attachment binary.
+5. Both disposable projects and volumes were removed afterwards.
+
+Result: **backup/restore verified end to end**; the drill exercised no live data.
+
 ## EC2 staging workflow prerequisites
 
 The GitHub Actions workflow is manual (`workflow_dispatch`) and runs in the `staging` environment. It skips when any required repository/environment variable is missing. Configure these variables in the GitHub `staging` environment:

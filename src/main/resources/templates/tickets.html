@@ -4,7 +4,7 @@
 <body>
 <aside>
   <h2 class="brand"><i class="brand-mark"></i><span>IT Helpdesk</span></h2>
-  <nav><a href="/"><b class="nav-icon" aria-hidden="true">⌂</b><span>Dashboard</span></a><a class="active" href="/tickets" aria-current="page"><b class="nav-icon" aria-hidden="true">▣</b><span>Tickets</span></a><a href="/assets"><b class="nav-icon" aria-hidden="true">▤</b><span>Assets</span></a></nav>
+  <nav><a href="/"><b class="nav-icon" aria-hidden="true">⌂</b><span>Dashboard</span></a><a class="active" href="/tickets" aria-current="page"><b class="nav-icon" aria-hidden="true">▣</b><span>Tickets</span></a><a href="/assets"><b class="nav-icon" aria-hidden="true">▤</b><span>Assets</span></a><a href="/notifications"><b class="nav-icon" aria-hidden="true">◔</b><span>Notifications</span></a></nav>
   <form class="signout" method="post" action="/logout"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><button class="link"><b class="nav-icon">↪</b><span>Sign out</span></button></form>
 </aside>
 <main class="content">

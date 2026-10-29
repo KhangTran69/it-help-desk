@@ -4,16 +4,24 @@ import com.example.helpdesk.dto.TicketCreateForm;
 import com.example.helpdesk.dto.TicketEditForm;
 import com.example.helpdesk.model.*;
 import com.example.helpdesk.repo.UserRepository;
+import com.example.helpdesk.service.TicketAttachmentService;
 import com.example.helpdesk.service.TicketService;
 import jakarta.validation.Valid;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Set;
@@ -22,10 +30,12 @@ import java.util.Set;
 public class TicketPageController {
     private final TicketService tickets;
     private final UserRepository users;
+    private final TicketAttachmentService attachments;
 
-    public TicketPageController(TicketService tickets, UserRepository users) {
+    public TicketPageController(TicketService tickets, UserRepository users, TicketAttachmentService attachments) {
         this.tickets = tickets;
         this.users = users;
+        this.attachments = attachments;
     }
 
     @GetMapping("/tickets")
@@ -107,6 +117,7 @@ public class TicketPageController {
         model.addAttribute("statuses", TicketStatus.values());
         model.addAttribute("currentStep", ticket.getStatus().ordinal());
         model.addAttribute("comments", tickets.publicComments(id, authentication.getName()));
+        model.addAttribute("attachments", attachments.listForTicket(id));
         return "my-ticket-progress";
     }
 
@@ -127,7 +138,34 @@ public class TicketPageController {
         model.addAttribute("statuses", TicketStatus.values());
         model.addAttribute("technicians", users.findByRole(Role.TECHNICIAN));
         model.addAttribute("version", ticket.getVersion());
+        model.addAttribute("attachments", attachments.listForTicket(id));
         return "ticket-detail";
+    }
+
+    @PostMapping("/tickets/{id}/attachments")
+    String uploadAttachment(@PathVariable Long id, @RequestParam("file") MultipartFile file,
+                            Authentication authentication, RedirectAttributes redirect) {
+        attachments.store(id, file, authentication.getName());
+        redirect.addFlashAttribute("success", "Attachment added.");
+        return "redirect:/tickets/" + id;
+    }
+
+    @GetMapping("/tickets/{id}/attachments/{attachmentId}/download")
+    ResponseEntity<Resource> downloadAttachment(@PathVariable Long id, @PathVariable Long attachmentId,
+                                                Authentication authentication) {
+        return attachmentResource(attachments.readableContent(id, attachmentId, authentication.getName()));
+    }
+
+    private ResponseEntity<Resource> attachmentResource(TicketAttachment attachment) {
+        ByteArrayResource body = new ByteArrayResource(attachment.getContent());
+        String contentDisposition = ContentDisposition.builder("attachment")
+                .filename(attachment.getFilename())
+                .build().toString();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
+                .contentType(MediaType.parseMediaType(attachment.getContentType()))
+                .contentLength(attachment.getSizeBytes())
+                .body(body);
     }
 
     @PostMapping("/tickets/{id}/comments")
@@ -180,6 +218,20 @@ public class TicketPageController {
         tickets.assign(id, technicianId, authentication.getName(), version);
         redirect.addFlashAttribute("success", "Ticket assigned successfully.");
         return "redirect:/tickets/" + id;
+    }
+
+    @PostMapping("/my-tickets/{id}/attachments")
+    String uploadMyAttachment(@PathVariable Long id, @RequestParam("file") MultipartFile file,
+                              Authentication authentication, RedirectAttributes redirect) {
+        attachments.store(id, file, authentication.getName());
+        redirect.addFlashAttribute("success", "Attachment added.");
+        return "redirect:/my-tickets/" + id;
+    }
+
+    @GetMapping("/my-tickets/{id}/attachments/{attachmentId}/download")
+    ResponseEntity<Resource> downloadMyAttachment(@PathVariable Long id, @PathVariable Long attachmentId,
+                                                  Authentication authentication) {
+        return attachmentResource(attachments.readableContent(id, attachmentId, authentication.getName()));
     }
 
     private void populateTicketForm(Model model) {

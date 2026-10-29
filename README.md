@@ -109,7 +109,7 @@ Testcontainers exercises MySQL migrations and Redis cache invalidation when Dock
 
 The optional monitoring stack is available with `docker compose --profile observability up --build`. Grafana is bound to `127.0.0.1:3000`; set a unique `GRAFANA_ADMIN_PASSWORD` in `.env`. Prometheus scrapes the application only over the private Compose network. Alert rules cover application availability and elevated server errors.
 
-Create a SQL backup with `scripts/backup-mysql.sh [output.sql]`. Restore only into a confirmed target database with `scripts/restore-mysql.sh backup.sql`; the script asks for the word `RESTORE`. Practice against a disposable Compose project and isolated volume before relying on this procedure. Backups contain sensitive ticket and account data and must be stored encrypted with restricted access.
+Create a SQL backup with `scripts/backup-mysql.sh [output.sql]`. Restore only into a confirmed target database with `scripts/restore-mysql.sh backup.sql`; the script asks for the word `RESTORE`. Practice against a disposable Compose project and isolated volume before relying on this procedure. Backups contain sensitive ticket and account data and must be stored encrypted with restricted access. A disposable drill verified this procedure end to end on 2026-10-29; see `docs/operations.md` for the record.
 
 ## Staging Preparation
 
@@ -126,9 +126,9 @@ The login throttle is process-local and resets on restart. It is suitable for th
 ## Known Limitations
 
 - No AWS or other hosted deployment is configured; CI builds the image but does not publish or deploy it.
-- Attachments and email notifications are not implemented.
+- In-app notifications cover status changes, assignments, and priority changes; email delivery is not implemented.
 - JWT refresh/revocation lists are not implemented; access tokens expire after 15 minutes by default, and disabling an account immediately rejects its tokens.
 - Login throttling is in-memory and does not coordinate across multiple application replicas.
-- Password recovery, email notifications, attachments, and business-hours SLA calendars are not implemented.
+- Password recovery, email delivery, and business-hours SLA calendars are not implemented.
 - Prometheus alert rules are examples; no alert receiver or on-call notification channel is configured.
 - This is a portfolio/demo application, not a production deployment.
