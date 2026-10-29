@@ -49,6 +49,9 @@
       </li>
     </ol>
     <p class="timeline-note" th:if="${ticket.status == T(com.example.helpdesk.model.TicketStatus).CLOSED}">This request is closed.</p>
+    <p class="timeline-note" th:if="${ticket.status == T(com.example.helpdesk.model.TicketStatus).OPEN}">Your request is in the queue. Add a comment below if you have more details to share.</p>
+    <p class="timeline-note" th:if="${ticket.status == T(com.example.helpdesk.model.TicketStatus).IN_PROGRESS}">A technician is working on your request. You can ask for an update in the conversation below.</p>
+    <p class="timeline-note" th:if="${ticket.status == T(com.example.helpdesk.model.TicketStatus).RESOLVED}">A resolution has been recorded. Review the notes below and reply in the conversation if you still need help.</p>
   </section>
   <section class="card ticket-summary">
     <h2>Request details</h2>
