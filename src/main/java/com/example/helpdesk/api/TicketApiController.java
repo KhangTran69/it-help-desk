@@ -1,26 +1,35 @@
 package com.example.helpdesk.api;
 
+import com.example.helpdesk.api.dto.AttachmentDto;
 import com.example.helpdesk.api.dto.PageResponse;
 import com.example.helpdesk.api.dto.TicketDto;
 import com.example.helpdesk.api.dto.TicketCommentDto;
 import com.example.helpdesk.dto.TicketEditForm;
 import com.example.helpdesk.model.Ticket;
+import com.example.helpdesk.model.TicketAttachment;
 import com.example.helpdesk.model.TicketComment;
 import com.example.helpdesk.model.TicketStatus;
+import com.example.helpdesk.service.TicketAttachmentService;
 import com.example.helpdesk.service.TicketService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.time.ZoneOffset;
@@ -37,9 +46,11 @@ public class TicketApiController {
     private static final java.util.Set<String> SORT_FIELDS = java.util.Set.of("id", "title", "status", "priority", "createdAt", "updatedAt");
 
     private final TicketService ticketService;
+    private final TicketAttachmentService attachments;
 
-    public TicketApiController(TicketService ticketService) {
+    public TicketApiController(TicketService ticketService, TicketAttachmentService attachments) {
         this.ticketService = ticketService;
+        this.attachments = attachments;
     }
 
     @GetMapping
@@ -134,6 +145,56 @@ public class TicketApiController {
         ticketService.assign(id, technicianId, authentication.getName(), version);
         Ticket updated = ticketService.getTicketById(id);
         return ResponseEntity.ok(convertToDto(updated));
+    }
+
+    @GetMapping("/{id}/attachments")
+    @Operation(summary = "List ticket attachments")
+    @PreAuthorize("hasRole('TECHNICIAN')")
+    public ResponseEntity<List<AttachmentDto>> listAttachments(@PathVariable Long id) {
+        ticketService.getTicketById(id);
+        return ResponseEntity.ok(attachments.listForTicket(id).stream().map(this::toAttachmentDto).toList());
+    }
+
+    @PostMapping("/{id}/attachments")
+    @Operation(summary = "Upload a ticket attachment (5 MB max, document/image/archive types)")
+    @PreAuthorize("hasRole('TECHNICIAN')")
+    public ResponseEntity<AttachmentDto> uploadAttachment(@PathVariable Long id,
+                                                          @RequestParam("file") MultipartFile file,
+                                                          Authentication authentication) {
+        TicketAttachment saved = attachments.store(id, file, authentication.getName());
+        return ResponseEntity.status(HttpStatus.CREATED).body(toAttachmentDto(saved));
+    }
+
+    @GetMapping("/{id}/attachments/{attachmentId}/download")
+    @Operation(summary = "Download a ticket attachment")
+    @PreAuthorize("hasRole('TECHNICIAN')")
+    public ResponseEntity<Resource> downloadAttachment(@PathVariable Long id, @PathVariable Long attachmentId,
+                                                       Authentication authentication) {
+        TicketAttachment attachment = attachments.readableContent(id, attachmentId, authentication.getName());
+        String contentDisposition = ContentDisposition.builder("attachment")
+                .filename(attachment.getFilename()).build().toString();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
+                .contentType(MediaType.parseMediaType(attachment.getContentType()))
+                .contentLength(attachment.getSizeBytes())
+                .body(new ByteArrayResource(attachment.getContent()));
+    }
+
+    @GetMapping("/my/{id}/attachments")
+    @Operation(summary = "List attachments on one of the current user's tickets")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<List<AttachmentDto>> listMyAttachments(@PathVariable Long id,
+                                                                 Authentication authentication) {
+        ticketService.getMyTicket(id, authentication.getName());
+        return ResponseEntity.ok(attachments.listForTicket(id).stream().map(this::toAttachmentDto).toList());
+    }
+
+    private com.example.helpdesk.api.dto.AttachmentDto toAttachmentDto(TicketAttachment attachment) {
+        return new com.example.helpdesk.api.dto.AttachmentDto(
+                attachment.getId(), attachment.getTicket().getId(), attachment.getFilename(),
+                attachment.getContentType(), attachment.getSizeBytes(),
+                attachment.getUploadedBy().getUsername(),
+                attachment.getUploadedAt().atOffset(ZoneOffset.UTC));
     }
 
     @GetMapping("/my/{id}")

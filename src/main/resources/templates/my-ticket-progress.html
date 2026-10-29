@@ -11,7 +11,7 @@
   <h2 class="brand"><i class="brand-mark"></i><span>IT Helpdesk</span></h2>
   <nav>
     <a href="/my-tickets" class="active" aria-current="page"><b class="nav-icon" aria-hidden="true">▣</b><span>My Tickets</span></a>
-    <a href="/tickets/new"><b class="nav-icon">＋</b><span>Create Ticket</span></a>
+    <a href="/tickets/new"><b class="nav-icon">＋</b><span>Create Ticket</span></a><a href="/notifications"><b class="nav-icon" aria-hidden="true">◔</b><span>Notifications</span></a>
   </nav>
   <form class="signout" method="post" action="/logout">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -78,9 +78,22 @@
       </li>
     </ol>
   </section>
+  <section class="card attachment-section" aria-labelledby="attachments-heading">
+    <h2 id="attachments-heading">File attachments</h2>
+    <ul>
+      <li th:each="a : ${attachments}"><a th:href="@{'/my-tickets/' + ${ticket.id} + '/attachments/' + ${a.id} + '/download'}" th:text="${a.filename}">file.pdf</a>
+        <small th:text="${a.contentType + ' · ' + a.sizeBytes + ' bytes'}">info</small></li>
+    </ul>
+    <p class="empty" th:if="${#lists.isEmpty(attachments)}">No attachments yet.</p>
+    <form method="post" th:action="@{'/my-tickets/' + ${ticket.id} + '/attachments'}" enctype="multipart/form-data" class="stack-form">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+      <label for="attachment-file">Add file (max 5 MB)</label>
+      <input id="attachment-file" type="file" name="file" required>
+      <button type="submit">Upload attachment</button>
+    </form>
+  </section>
   <section class="card comment-section" aria-labelledby="conversation-heading">
-    <h2 id="conversation-heading">Conversation</h2>
-    <article class="comment-item" th:each="comment : ${comments}">
+    <h2 id="conversation-heading">Conversation</h2>    <article class="comment-item" th:each="comment : ${comments}">
       <div class="comment-meta"><strong th:text="${comment.author.fullName}">Author</strong><time th:text="${@phTime.dateTime(comment.createdAt)}">Date</time></div>
       <p class="pre-wrap" th:text="${comment.content}">Comment</p>
     </article>
