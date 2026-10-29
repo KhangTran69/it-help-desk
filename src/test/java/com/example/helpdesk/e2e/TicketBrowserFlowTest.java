@@ -71,6 +71,15 @@ class TicketBrowserFlowTest {
         new WebDriverWait(browser, Duration.ofSeconds(10))
                 .withMessage(() -> "Employee ticket progress did not load at " + browser.getCurrentUrl())
                 .until(driver -> driver.getPageSource().contains("Browser workflow request"));
+        browser.findElement(By.id("comment-content")).sendKeys("The room is available after lunch.");
+        browser.findElement(By.cssSelector("form.comment-form button[type='submit']")).click();
+        new WebDriverWait(browser, Duration.ofSeconds(10))
+                .withMessage(() -> "Employee comment was not displayed at " + browser.getCurrentUrl())
+                .until(driver -> driver.getPageSource().contains("The room is available after lunch."));
+        browser.navigate().refresh();
+        new WebDriverWait(browser, Duration.ofSeconds(10))
+                .withMessage(() -> "Employee comment did not persist after reload at " + browser.getCurrentUrl())
+                .until(driver -> driver.getPageSource().contains("The room is available after lunch."));
         captureScreenshot("employee-ticket-progress.png");
         Long ticketId = tickets.findAll().stream().filter(t -> t.getTitle().equals("Browser workflow request"))
                 .findFirst().orElseThrow().getId();
@@ -84,6 +93,13 @@ class TicketBrowserFlowTest {
         login(technicianUsername, "technician-pass-123");
         browser.get(baseUrl() + "/tickets/" + ticketId);
         assertTrue(browser.getPageSource().contains("Browser workflow request"));
+        browser.findElement(By.cssSelector("form.comment-form textarea[name='content']"))
+                .sendKeys("Internal note: confirm the room equipment inventory.");
+        browser.findElement(By.cssSelector("form.comment-form input[name='internalNote']")).click();
+        browser.findElement(By.cssSelector("form.comment-form button[type='submit']")).click();
+        new WebDriverWait(browser, Duration.ofSeconds(10))
+                .withMessage(() -> "Technician internal note was not displayed at " + browser.getCurrentUrl())
+                .until(driver -> driver.getPageSource().contains("Internal note: confirm the room equipment inventory."));
         captureScreenshot("technician-ticket-detail.png");
         String technicianId = users.findByUsername(technicianUsername).orElseThrow().getId().toString();
         var assignmentSelect = new WebDriverWait(browser, Duration.ofSeconds(10))
@@ -101,6 +117,16 @@ class TicketBrowserFlowTest {
         new WebDriverWait(browser, Duration.ofSeconds(10))
                 .withMessage(() -> "Resolved status was not displayed at " + browser.getCurrentUrl())
                 .until(ExpectedConditions.textToBePresentInElementLocated(By.cssSelector(".detail-meta"), "RESOLVED"));
+
+        browser.findElement(By.cssSelector("form.signout button")).click();
+        login(employeeUsername, "employee-pass-123");
+        browser.get(baseUrl() + "/my-tickets/" + ticketId);
+        new WebDriverWait(browser, Duration.ofSeconds(10))
+                .withMessage(() -> "Employee could not reopen ticket progress at " + browser.getCurrentUrl())
+                .until(driver -> driver.getPageSource().contains("The room is available after lunch."));
+        assertTrue(browser.getPageSource().contains("RESOLVED"));
+        assertTrue(!browser.getPageSource().contains("Internal note: confirm the room equipment inventory."),
+                "Technician-only internal note must not be visible to the employee");
     }
 
     private void login(String username, String password) {
