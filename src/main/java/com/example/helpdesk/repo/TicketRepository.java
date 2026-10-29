@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.time.LocalDateTime;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
+    boolean existsByTitle(String title);
     List<Ticket> findTop10ByOrderByUpdatedAtDesc();
     List<Ticket> findByReporterOrderByUpdatedAtDesc(User user);
     List<Ticket> findByReporterUsernameOrderByUpdatedAtDesc(String username);

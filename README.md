@@ -23,6 +23,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo
 The demo profile is only for local demonstration. Do not enable it for a public deployment.
 
 Demo credentials (local only): employee / employee123 and technician / technician123.
+The demo profile also seeds one open, unassigned network ticket, `Demo: Laptop cannot connect to Wi-Fi`; it reuses that ticket on later starts.
 
 ## Features
 
