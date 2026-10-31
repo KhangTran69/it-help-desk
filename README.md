@@ -20,10 +20,27 @@ For local development without Docker:
 mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo
 ~~~
 
-The demo profile is only for local demonstration. Do not enable it for a public deployment.
+The `h2,demo` profiles are for local demonstration only. Never enable `demo` on a public deployment or in production Compose. The normal `docker compose up` path uses MySQL and does not seed demo data.
 
-Demo credentials (local only): employee / employee123 and technician / technician123.
-The demo profile also seeds one open, unassigned network ticket, `Demo: Laptop cannot connect to Wi-Fi`; it reuses that ticket on later starts.
+Demo credentials (local only): `employee` / `employee123` and `technician` / `technician123`. The demo profile seeds one open, unassigned network ticket titled **Demo: Laptop cannot connect to Wi-Fi**. The ticket persists across restarts and can be changed during the walkthrough; the initializer reuses the sample ticket on later starts.
+
+### Local demo walkthrough
+
+1. Start the local-only H2 demo command above and open <http://localhost:8080/login>.
+2. Sign in as `employee`, open **My Tickets**, and select **View progress** for the demo ticket.
+3. Sign out, then sign in as `technician`. Open the ticket queue, select the demo ticket, and change its status to **IN_PROGRESS**.
+4. Change the status to **RESOLVED** and enter a resolution note. Resolution requires a note.
+5. Sign out and sign in again as `employee`. Open **My Tickets** to confirm the ticket progress shows the resolved status and note.
+6. Optionally sign in as a different employee account and try opening the demo ticket's progress URL directly; tickets are visible only to their owner.
+
+To restore the original open demo ticket, stop the local application and remove only the H2 database files, then run the same `h2,demo` command again:
+
+~~~bash
+rm -f data/helpdesk.mv.db data/helpdesk.trace.db
+mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo
+~~~
+
+This removes all local H2 demo/development data. Do not use `docker compose down -v` as a demo reset; that removes the Compose MySQL and Redis volumes. Lifecycle changes to the seeded ticket persist until the H2 files are reset as described above.
 
 ## Features
 
