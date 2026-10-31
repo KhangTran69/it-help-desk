@@ -104,6 +104,7 @@ Ticket update requests must include the version returned in the ticket JSON. Sta
 - V4__ticket_comments_and_optimistic_lock.sql: public/internal comments and ticket versioning.
 - V5__asset_version_and_ticket_sla.sql: asset optimistic locking and SLA clock fields.
 - V6__add_account_enabled_flag.sql: account access state.
+- V8__ticket_status_check.sql: `tickets.status` must be `OPEN`, `IN_PROGRESS`, `RESOLVED`, or `CLOSED`.
 
 SLA defaults are 24 hours for High, 3 days for Medium, and 14 days for Low. They are elapsed-time targets, not business-hours targets. Override them with `SLA_HIGH_SECONDS`, `SLA_MEDIUM_SECONDS`, and `SLA_LOW_SECONDS`. Existing open tickets begin tracking after migration; existing resolved/closed tickets start paused.
 

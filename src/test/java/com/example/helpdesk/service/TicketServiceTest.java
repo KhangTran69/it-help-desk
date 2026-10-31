@@ -78,6 +78,51 @@ class TicketServiceTest {
     }
 
     @Test
+    void employeeCannotUpdateStatusOrAssign() {
+        when(users.findByUsername("alice")).thenReturn(Optional.of(employeeAlice));
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.updateStatus(1L, TicketStatus.IN_PROGRESS, null, "alice"));
+        assertThrows(AccessDeniedException.class,
+                () -> service.assign(1L, technicianCharlie.getId(), "alice"));
+        verify(tickets, never()).save(any());
+    }
+
+    @Test
+    void technicianCannotAssignAnEmployee() {
+        Ticket existing = new Ticket();
+        existing.setId(9L);
+        existing.setStatus(TicketStatus.OPEN);
+        when(users.findByUsername("charlie")).thenReturn(Optional.of(technicianCharlie));
+        when(tickets.findById(9L)).thenReturn(Optional.of(existing));
+        when(users.findById(employeeAlice.getId())).thenReturn(Optional.of(employeeAlice));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.assign(9L, employeeAlice.getId(), "charlie"));
+
+        assertEquals("Assignee must be a technician", ex.getMessage());
+        verify(tickets, never()).save(any());
+    }
+
+    @Test
+    void technicianCanResolveAnOpenTicketAndReopenIt() {
+        Ticket existing = new Ticket();
+        existing.setId(10L);
+        existing.setStatus(TicketStatus.OPEN);
+        existing.setPriority(Priority.MEDIUM);
+        when(tickets.findById(10L)).thenReturn(Optional.of(existing));
+        when(users.findByUsername("charlie")).thenReturn(Optional.of(technicianCharlie));
+        when(tickets.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateStatus(10L, TicketStatus.RESOLVED, "Adapter replaced", "charlie");
+        assertEquals(TicketStatus.RESOLVED, existing.getStatus());
+        assertEquals("Adapter replaced", existing.getResolutionNotes());
+
+        service.updateStatus(10L, TicketStatus.OPEN, null, "charlie");
+        assertEquals(TicketStatus.OPEN, existing.getStatus());
+    }
+
+    @Test
     void employeeCanEditOwnOpenTicket_ModifiesExistingRecordAndPreservesCoreFields() {
         LocalDateTime originalCreated = LocalDateTime.of(2026, 1, 15, 10, 0);
         LocalDateTime originalUpdated = LocalDateTime.of(2026, 1, 15, 10, 0);
