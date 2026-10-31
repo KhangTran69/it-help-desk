@@ -7,6 +7,7 @@ import com.example.helpdesk.service.TicketService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -49,7 +50,7 @@ class MySqlRedisContainersTest {
 
     @Test
     void migrationsAndRedisDashboardCacheWorkWithRealServices() {
-        assertEquals(7, jdbc.queryForObject("SELECT MAX(version) FROM flyway_schema_history WHERE success = TRUE", Integer.class));
+        assertEquals(8, jdbc.queryForObject("SELECT MAX(version) FROM flyway_schema_history WHERE success = TRUE", Integer.class));
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'tickets' AND column_name = 'version'", Integer.class) > 0);
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'assets' AND column_name = 'version'", Integer.class) > 0);
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'tickets' AND column_name = 'sla_due_at'", Integer.class) > 0);
@@ -108,5 +109,22 @@ class MySqlRedisContainersTest {
         var incompatibleStatus = tickets.pageTickets(employee, TicketStatus.OPEN, null, null, null, null, null,
                 true, false, java.time.LocalDateTime.now(java.time.ZoneOffset.UTC), PageRequest.of(0, 10));
         assertEquals(0, incompatibleStatus.getTotalElements());
+    }
+
+    @Test
+    void mysqlRejectsTicketStatusOutsideTheApplicationEnum() {
+        Integer checks = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.table_constraints WHERE table_schema = DATABASE() AND table_name = 'tickets' AND constraint_name = 'chk_tickets_status' AND constraint_type = 'CHECK'",
+                Integer.class);
+        assertEquals(1, checks);
+
+        String suffix = Long.toString(System.nanoTime());
+        User employee = users.save(new User("status-emp-" + suffix, "hash", "Status Employee", Role.EMPLOYEE));
+        String title = "Bad status " + suffix;
+        DataAccessException ex = assertThrows(DataAccessException.class, () -> jdbc.update(
+                "INSERT INTO tickets (title, description, category, priority, status, reporter_id, created_at, updated_at) VALUES (?,?,?,?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))",
+                title, "Should not persist", "OTHER", "LOW", "NOT_A_STATUS", employee.getId()));
+        assertTrue(ex.getMostSpecificCause().getMessage().contains("chk_tickets_status"));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM tickets WHERE title = ?", Integer.class, title));
     }
 }
