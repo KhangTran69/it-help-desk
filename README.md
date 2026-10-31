@@ -17,7 +17,7 @@ Open [http://localhost:8080](http://localhost:8080). Health check: [http://local
 For local development without Docker:
 
 ~~~bash
-mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo
+JWT_SECRET="local-demo-jwt-secret-with-at-least-32-bytes" mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo
 ~~~
 
 The `h2,demo` profiles are for local demonstration only. Never enable `demo` on a public deployment or in production Compose. The normal `docker compose up` path uses MySQL and does not seed demo data.
@@ -37,7 +37,7 @@ To restore the original open demo ticket, stop the local application and remove 
 
 ~~~bash
 rm -f data/helpdesk.mv.db data/helpdesk.trace.db
-mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo
+JWT_SECRET="local-demo-jwt-secret-with-at-least-32-bytes" mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo
 ~~~
 
 This removes all local H2 demo/development data. Do not use `docker compose down -v` as a demo reset; that removes the Compose MySQL and Redis volumes. Lifecycle changes to the seeded ticket persist until the H2 files are reset as described above.
