@@ -17,6 +17,7 @@
   <nav th:unless="${isTechnician}">
     <a href="/my-tickets"><b class="nav-icon">▣</b><span>My Tickets</span></a>
     <a href="/tickets/new" class="active" aria-current="page"><b class="nav-icon" aria-hidden="true">＋</b><span>Create Ticket</span></a>
+    <a href="/notifications"><b class="nav-icon" aria-hidden="true">◔</b><span>Notifications</span></a>
   </nav>
   <form class="signout" method="post" action="/logout">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">

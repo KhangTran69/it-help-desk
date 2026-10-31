@@ -20,6 +20,8 @@ public class NotificationPageController {
 
     @GetMapping("/notifications")
     String myNotifications(Authentication authentication, Model model) {
+        model.addAttribute("isTechnician", authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority())));
         model.addAttribute("notifications",
                 notifications.findByRecipientUsernameOrderByCreatedAtDesc(authentication.getName()));
         return "notifications";

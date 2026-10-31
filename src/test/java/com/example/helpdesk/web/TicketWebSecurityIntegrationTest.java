@@ -423,6 +423,23 @@ class TicketWebSecurityIntegrationTest {
 
     @Test
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
+    void employeeNavigationPersistsAcrossTicketAndNotificationPages() throws Exception {
+        for (String path : java.util.List.of(
+                "/my-tickets", "/my-tickets/" + aliceOpenTicket.getId(),
+                "/tickets/new", "/notifications")) {
+            mockMvc.perform(get(path))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("href=\"/my-tickets\"")))
+                    .andExpect(content().string(containsString("href=\"/tickets/new\"")))
+                    .andExpect(content().string(containsString("href=\"/notifications\"")))
+                    .andExpect(content().string(org.hamcrest.Matchers.not(containsString("href=\"/assets\""))));
+        }
+        mockMvc.perform(get("/notifications"))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Back to dashboard"))));
+    }
+
+    @Test
+    @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeCannotTrackAnotherEmployeesTicketByChangingId() throws Exception {
         mockMvc.perform(get("/my-tickets/" + bobOpenTicket.getId()))
                 .andExpect(status().isNotFound())
