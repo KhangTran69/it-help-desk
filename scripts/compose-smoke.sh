@@ -36,5 +36,5 @@ for attempt in $(seq 1 90); do
 done
 
 curl --fail --silent "$base_url/login" | grep -q 'Sign in to manage support requests.'
-curl --fail --silent "$base_url/register" | grep -q 'Create employee account'
-echo "Compose smoke check passed: health, login, and employee registration pages responded."
+curl --fail --silent --location "$base_url/register" | grep -q 'Account registration is disabled.'
+echo "Compose smoke check passed: health, login, and disabled registration responded."
