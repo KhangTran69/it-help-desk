@@ -13,8 +13,9 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      HELPDESK_REGISTRATION_ENABLED: ${HELPDESK_REGISTRATION_ENABLED:-false}
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
     depends_on:
       mysql:
         condition: service_healthy

@@ -38,6 +38,7 @@ info:
     name: IT Helpdesk
     description: IT Help Desk and Asset Management System
 helpdesk:
+  registration-enabled: ${HELPDESK_REGISTRATION_ENABLED:false}
   sla:
     targets:
       low: ${SLA_LOW_SECONDS:1209600}

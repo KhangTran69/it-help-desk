@@ -12,7 +12,9 @@ An educational portfolio project: a containerized Spring Boot IT help desk and a
    docker compose up --build
    ~~~
 
-Open [http://localhost:8080](http://localhost:8080). Health check: [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health). MySQL data persists in a Docker volume; docker compose down -v deletes that volume.
+Open [http://localhost:8080](http://localhost:8080). Compose publishes the app on loopback by default; change `APP_PORT` to select another host port. To expose it through a network ingress, override the Compose port mapping deliberately. Health check: [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health). MySQL data persists in a Docker volume; docker compose down -v deletes that volume.
+
+Public employee self-registration is disabled by default in Compose. Set `HELPDESK_REGISTRATION_ENABLED=true` in `.env` only when the deployment intentionally accepts unverified employee sign-ups. This project does not currently provide a staff account-provisioning screen, so deployments that keep registration disabled need to provision accounts through a trusted administrative process.
 
 For local development without Docker:
 
