@@ -19,30 +19,31 @@ Public employee self-registration is disabled by default in Compose. Set `HELPDE
 For local development without Docker:
 
 ~~~bash
-JWT_SECRET="local-demo-jwt-secret-with-at-least-32-bytes" mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo
+mkdir -p .demo-data
+JWT_SECRET="local-demo-jwt-secret-with-at-least-32-bytes" mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo -Dspring-boot.run.arguments="--server.address=127.0.0.1 --server.port=18080 --spring.datasource.url=jdbc:h2:file:./.demo-data/helpdesk;MODE=MySQL;DB_CLOSE_DELAY=-1"
 ~~~
 
-The `h2,demo` profiles are for local demonstration only. Never enable `demo` on a public deployment or in production Compose. The normal `docker compose up` path uses MySQL and does not seed demo data.
+The `h2,demo` profiles are for local demonstration only. These commands keep demo data in the ignored, per-worktree `.demo-data/` directory, listen on `127.0.0.1:18080`, and do not use the default `data/` directory. Never enable `demo` on a public deployment or in production Compose. The normal `docker compose up` path uses MySQL and does not seed demo data. Compose continues to publish on port 8080 by default; set `APP_PORT` to choose another host port.
 
 Demo credentials (local only): `employee` / `employee123` and `technician` / `technician123`. The demo profile seeds one open, unassigned network ticket titled **Demo: Laptop cannot connect to Wi-Fi**. The ticket persists across restarts and can be changed during the walkthrough; the initializer reuses the sample ticket on later starts.
 
 ### Local demo walkthrough
 
-1. Start the local-only H2 demo command above and open <http://localhost:8080/login>.
+1. Start the local-only H2 demo command above and open <http://localhost:18080/login>.
 2. Sign in as `employee`, open **My Tickets**, and select **View progress** for the demo ticket.
 3. Sign out, then sign in as `technician`. Open the ticket queue, select the demo ticket, and change its status to **IN_PROGRESS**.
 4. Change the status to **RESOLVED** and enter a resolution note. Resolution requires a note.
 5. Sign out and sign in again as `employee`. Open **My Tickets** to confirm the ticket progress shows the resolved status and note.
 6. Optionally sign in as a different employee account and try opening the demo ticket's progress URL directly; tickets are visible only to their owner.
 
-To restore the original open demo ticket, stop the local application and remove only the H2 database files, then run the same `h2,demo` command again:
+To restore the original open demo ticket, stop this local demo application and remove only its scratch H2 files, then run the same `h2,demo` command again. This does not remove or reset `data/helpdesk.mv.db`, `data/helpdesk.trace.db`, or any Compose data:
 
 ~~~bash
-rm -f data/helpdesk.mv.db data/helpdesk.trace.db
-JWT_SECRET="local-demo-jwt-secret-with-at-least-32-bytes" mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo
+rm -f .demo-data/helpdesk.mv.db .demo-data/helpdesk.trace.db
+JWT_SECRET="local-demo-jwt-secret-with-at-least-32-bytes" mvn spring-boot:run -Dspring-boot.run.profiles=h2,demo -Dspring-boot.run.arguments="--server.address=127.0.0.1 --server.port=18080 --spring.datasource.url=jdbc:h2:file:./.demo-data/helpdesk;MODE=MySQL;DB_CLOSE_DELAY=-1"
 ~~~
 
-This removes all local H2 demo/development data. Do not use `docker compose down -v` as a demo reset; that removes the Compose MySQL and Redis volumes. Lifecycle changes to the seeded ticket persist until the H2 files are reset as described above.
+This removes only the scratch H2 demo database for this worktree. Do not use `docker compose down -v` as a demo reset; that removes the Compose MySQL and Redis volumes. Lifecycle changes to the seeded ticket persist until the scratch H2 files are reset as described above.
 
 ## Features
 
