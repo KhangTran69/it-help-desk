@@ -59,6 +59,7 @@ public class LoginAttemptService {
             Long failures = redis.opsForValue().increment(failureKey);
             if (failures != null && failures == 1L) redis.expire(failureKey, Duration.ofMinutes(15));
             if (failures != null && failures >= MAX_FAILURES) {
+                redis.expire(failureKey, Duration.ofMinutes(10));
                 redis.opsForValue().set("helpdesk:login:blocked:" + key, "1", Duration.ofMinutes(10));
             }
             return;

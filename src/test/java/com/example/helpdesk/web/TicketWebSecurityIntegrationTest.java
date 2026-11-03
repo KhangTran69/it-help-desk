@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -442,6 +443,16 @@ class TicketWebSecurityIntegrationTest {
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeCannotTrackAnotherEmployeesTicketByChangingId() throws Exception {
         mockMvc.perform(get("/my-tickets/" + bobOpenTicket.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(containsString("Ticket not found")));
+    }
+
+    @Test
+    @WithMockUser(username = "alice", roles = "EMPLOYEE")
+    void employeeGetsNotFoundForNonexistentTicketProgress() throws Exception {
+        assertTrue(ticketRepository.findById(999999L).isEmpty());
+
+        mockMvc.perform(get("/my-tickets/999999"))
                 .andExpect(status().isNotFound())
                 .andExpect(content().string(containsString("Ticket not found")));
     }
