@@ -1,6 +1,7 @@
 package com.example.helpdesk.service;
 
 import com.example.helpdesk.exception.ResourceNotFoundException;
+import com.example.helpdesk.model.Role;
 import com.example.helpdesk.model.Ticket;
 import com.example.helpdesk.model.TicketAttachment;
 import com.example.helpdesk.model.User;
@@ -48,6 +49,10 @@ public class TicketAttachmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket not found"));
         User uploader = users.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        boolean reporter = ticket.getReporter() != null && sameUser(ticket.getReporter(), uploader);
+        if (!reporter && uploader.getRole() != Role.TECHNICIAN) {
+            throw new ResourceNotFoundException("Ticket not found");
+        }
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Choose a file to upload");
         }

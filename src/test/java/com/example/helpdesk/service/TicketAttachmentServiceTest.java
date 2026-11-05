@@ -63,6 +63,20 @@ class TicketAttachmentServiceTest {
     }
 
     @Test
+    void rejectsEmployeeUploadsToAnotherUsersTicket() {
+        Ticket ticket = new Ticket();
+        User reporter = user("owner", Role.EMPLOYEE);
+        User stranger = user("stranger", Role.EMPLOYEE);
+        ticket.setReporter(reporter);
+        when(tickets.findById(1L)).thenReturn(Optional.of(ticket));
+        when(users.findByUsername("stranger")).thenReturn(Optional.of(stranger));
+
+        assertThatThrownBy(() -> service.store(1L, org.mockito.Mockito.mock(MultipartFile.class), "stranger"))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void rejectsOversizedAndDisallowedFiles() {
         when(tickets.findById(1L)).thenReturn(Optional.of(new Ticket()));
         when(users.findByUsername("tech")).thenReturn(Optional.of(user("tech", Role.TECHNICIAN)));
