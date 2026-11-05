@@ -57,4 +57,32 @@ class RegistrationControllerEnabledTest {
         assertEquals(Role.EMPLOYEE, created.getRole());
         assertTrue(passwordEncoder.matches(rawPassword, created.getPassword()));
     }
+
+    @Test
+    void registrationRejectsUsernameLongerThanDatabaseColumn() throws Exception {
+        String username = "u".repeat(81);
+        mockMvc.perform(post("/register").with(csrf())
+                        .param("username", username)
+                        .param("fullName", "Long Username")
+                        .param("password", "employee-password-123")
+                        .param("confirmPassword", "employee-password-123"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Username cannot exceed 80 characters.")));
+
+        assertTrue(userRepository.findByUsername(username).isEmpty());
+    }
+
+    @Test
+    void registrationRejectsFullNameLongerThanDatabaseColumn() throws Exception {
+        String fullName = "n".repeat(121);
+        mockMvc.perform(post("/register").with(csrf())
+                        .param("username", "long-full-name")
+                        .param("fullName", fullName)
+                        .param("password", "employee-password-123")
+                        .param("confirmPassword", "employee-password-123"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Full name cannot exceed 120 characters.")));
+
+        assertTrue(userRepository.findByUsername("long-full-name").isEmpty());
+    }
 }

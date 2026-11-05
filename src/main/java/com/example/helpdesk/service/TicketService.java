@@ -301,8 +301,8 @@ public class TicketService {
         if (assignee.getRole() != Role.TECHNICIAN) throw new IllegalArgumentException("Assignee must be a technician");
         String previous = ticket.getTechnician() == null ? null : ticket.getTechnician().getUsername();
         if (!Objects.equals(previous, assignee.getUsername())) {
-            recordHistory(ticket, actor, "ASSIGNED", "Ticket assigned", "technician", previous, assignee.getUsername());
             ticket.setTechnician(assignee);
+            recordHistory(ticket, actor, "ASSIGNED", "Ticket assigned", "technician", previous, assignee.getUsername());
         }
     }
 

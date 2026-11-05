@@ -137,7 +137,7 @@ Create a SQL backup with `scripts/backup-mysql.sh [output.sql]`. Restore only in
 
 Manual workflows are provided for tagged GHCR publishing and EC2 staging deployment through AWS Systems Manager. The deploy workflow remains skipped until its staging variables are configured. It expects EC2, ECR, SSM Parameter Store, an external MySQL/Redis endpoint, and a host HTTPS reverse proxy. Follow [the operations guide](docs/operations.md) before enabling it. No cloud deployment or public image has been performed by this repository change.
 
-The login throttle is process-local and resets on restart. It is suitable for this single-instance demo; multi-instance deployments need a shared rate-limit store such as Redis. Password reset email is not implemented because no mail provider is configured.
+Local and demo profiles use an in-memory login throttle that resets on restart. The production profile defaults to a Redis-backed shared store through `LOGIN_THROTTLE_SHARED_STORE=true`; setting it to `false` switches to process-local throttling and does not coordinate attempts across replicas. Password reset email is not implemented because no mail provider is configured.
 
 ## Current Screenshots
 
@@ -150,7 +150,7 @@ The login throttle is process-local and resets on restart. It is suitable for th
 - No AWS or other hosted deployment is configured; CI builds the image but does not publish or deploy it.
 - In-app notifications cover status changes, assignments, and priority changes; email delivery is not implemented.
 - JWT refresh/revocation lists are not implemented; access tokens expire after 15 minutes by default, and disabling an account immediately rejects its tokens.
-- Login throttling is in-memory and does not coordinate across multiple application replicas.
+- Local login throttling is in-memory and does not coordinate across replicas; the production profile defaults to the Redis-backed shared store.
 - Password recovery, email delivery, and business-hours SLA calendars are not implemented.
 - Prometheus alert rules are examples; no alert receiver or on-call notification channel is configured.
 - This is a portfolio/demo application, not a production deployment.
