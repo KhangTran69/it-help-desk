@@ -5,6 +5,7 @@ ENV MAVEN_OPTS="-Xmx768m"
 COPY pom.xml ./pom.xml
 RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp dependency:go-offline
 COPY src ./src
+COPY scripts ./scripts
 RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -DforkCount=0 verify
 
 FROM eclipse-temurin:17-jre-jammy AS runtime
