@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
-@Profile("benchmark")
+@Profile("benchmark & !prod")
 public class BenchmarkDataInitializer {
     @Bean
     CommandLineRunner seedBenchmarkData(UserRepository users, TicketRepository tickets, AssetRepository assets,

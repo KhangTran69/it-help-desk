@@ -58,6 +58,44 @@ class AssetServiceTest {
     }
 
     @Test
+    void createAssignedAssetWithoutEmployeeIsRejected() {
+        Asset asset = new Asset();
+        asset.setAssetTag("AST-UNASSIGNED");
+        asset.setName("Laptop");
+        asset.setStatus(AssetStatus.ASSIGNED);
+        when(repo.existsByAssetTag("AST-UNASSIGNED")).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () -> service.createAsset(asset));
+        verify(repo, never()).save(any(Asset.class));
+    }
+
+    @Test
+    void apiUpdateKeepsAssignedStatusWhileEmployeeRemainsAssigned() {
+        Asset existing = new Asset();
+        existing.setId(21L);
+        existing.setAssetTag("AST-21");
+        existing.setName("Assigned laptop");
+        existing.setCategory("Laptop");
+        existing.setAssignedUser(testUser);
+        existing.setStatus(AssetStatus.ASSIGNED);
+
+        Asset update = new Asset();
+        update.setAssetTag("AST-21");
+        update.setName("Assigned laptop");
+        update.setCategory("Laptop");
+        update.setStatus(AssetStatus.AVAILABLE);
+
+        when(repo.findById(21L)).thenReturn(Optional.of(existing));
+        when(repo.existsByAssetTagAndIdNot("AST-21", 21L)).thenReturn(false);
+        when(repo.save(any(Asset.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Asset updated = service.updateAsset(21L, update, existing.getVersion());
+
+        assertSame(testUser, updated.getAssignedUser());
+        assertEquals(AssetStatus.ASSIGNED, updated.getStatus());
+    }
+
+    @Test
     void createAssetDuplicateTagThrowsException() {
         AssetForm form = new AssetForm();
         form.setAssetTag("AST-DUPLICATE");

@@ -21,9 +21,12 @@ public class AssetForm {
     private String name;
 
     @NotBlank(message = "Category is required")
+    @Size(max = 50, message = "Category cannot exceed 50 characters")
     private String category;
 
+    @Size(max = 100, message = "Manufacturer cannot exceed 100 characters")
     private String manufacturer;
+    @Size(max = 100, message = "Serial number cannot exceed 100 characters")
     private String serialNumber;
 
     @NotNull(message = "Status is required")

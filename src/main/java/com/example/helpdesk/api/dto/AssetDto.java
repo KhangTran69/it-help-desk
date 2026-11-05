@@ -10,13 +10,16 @@ public class AssetDto {
     private Long id;
     private Long version;
     @NotBlank(message = "Asset tag is required")
-    @Size(min = 3, max = 50, message = "Asset tag must be between 3 and 50 characters")
+    @Size(min = 3, max = 30, message = "Asset tag must be between 3 and 30 characters")
     private String assetTag;
     @NotBlank(message = "Model name is required")
-    @Size(min = 3, max = 200, message = "Model name must be between 3 and 200 characters")
+    @Size(min = 3, max = 120, message = "Model name must be between 3 and 120 characters")
     private String modelName;
+    @Size(max = 50, message = "Category cannot exceed 50 characters")
     private String category;
+    @Size(max = 100, message = "Manufacturer cannot exceed 100 characters")
     private String manufacturer;
+    @Size(max = 100, message = "Serial number cannot exceed 100 characters")
     private String serialNumber;
     private LocalDate purchaseDate;
     private String notes;

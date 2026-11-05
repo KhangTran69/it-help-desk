@@ -82,6 +82,12 @@ public class AssetService {
         if (a.getStatus() == AssetStatus.RETIRED && a.getAssignedUser() != null) {
             throw new IllegalArgumentException("Retired assets cannot be assigned");
         }
+        if (a.getStatus() == AssetStatus.ASSIGNED && a.getAssignedUser() == null) {
+            throw new IllegalArgumentException("Assigned assets must have an employee");
+        }
+        if (a.getStatus() == AssetStatus.AVAILABLE && a.getAssignedUser() != null) {
+            a.setStatus(AssetStatus.ASSIGNED);
+        }
         Asset saved = repo.save(a);
         if (creating) {
             if (businessMetrics != null) businessMetrics.incrementAssetCreated();

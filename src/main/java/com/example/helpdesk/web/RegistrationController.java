@@ -46,8 +46,17 @@ public class RegistrationController {
         }
 
         String clean = username == null ? "" : username.trim();
-        if (clean.length() < 3 || fullName == null || fullName.trim().isBlank()) {
+        String cleanFullName = fullName == null ? "" : fullName.trim();
+        if (clean.length() < 3 || cleanFullName.isBlank()) {
             model.addAttribute("error", "Please provide a username with at least 3 characters and your full name.");
+            return "register";
+        }
+        if (clean.length() > 80) {
+            model.addAttribute("error", "Username cannot exceed 80 characters.");
+            return "register";
+        }
+        if (cleanFullName.length() > 120) {
+            model.addAttribute("error", "Full name cannot exceed 120 characters.");
             return "register";
         }
         if (password == null || password.length() < 8) {
@@ -62,7 +71,7 @@ public class RegistrationController {
             model.addAttribute("error", "That username is already in use.");
             return "register";
         }
-        users.save(new User(clean, encoder.encode(password), fullName.trim(), Role.EMPLOYEE));
+        users.save(new User(clean, encoder.encode(password), cleanFullName, Role.EMPLOYEE));
         return "redirect:/login?registered";
     }
 }
