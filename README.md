@@ -79,6 +79,15 @@ flowchart LR
 
 Key packages: web for browser routes, api for JSON endpoints, service for business rules, repo for persistence, security for JWT support, and events for ticket audit events.
 
+### Review map: account access
+
+| Change area | Read first | Focused tests |
+|---|---|---|
+| Public registration gate and enabled sign-up flow | [`RegistrationController.java`](src/main/java/com/example/helpdesk/web/RegistrationController.java), [`application.yml`](src/main/resources/application.yml), and [`docker-compose.yml`](docker-compose.yml) | [`RegistrationControllerTest`](src/test/java/com/example/helpdesk/web/RegistrationControllerTest.java) covers the default-disabled GET and POST; [`RegistrationControllerEnabledTest`](src/test/java/com/example/helpdesk/web/RegistrationControllerEnabledTest.java) covers the enabled flow. |
+| Disable or re-enable an account, including existing sessions and JWTs | [`AccountAdminController.java`](src/main/java/com/example/helpdesk/web/AccountAdminController.java), [`EnabledAccountFilter.java`](src/main/java/com/example/helpdesk/security/EnabledAccountFilter.java), and [`SecurityConfig.java`](src/main/java/com/example/helpdesk/config/SecurityConfig.java) | [`AccountAdminControllerSecurityTest`](src/test/java/com/example/helpdesk/web/AccountAdminControllerSecurityTest.java) covers authorization and CSRF; [`TicketWebSecurityIntegrationTest`](src/test/java/com/example/helpdesk/web/TicketWebSecurityIntegrationTest.java) covers existing-session and JWT rejection. |
+
+Registration behavior crosses controller code and the Compose-provided default, so verify both configuration paths when changing its gate. These focused tests do not cover every account or login behavior in the repository.
+
 ## Roles and Ticket Safety
 
 Employees can create tickets and access their own /my-tickets progress pages. Technician-only dashboard, queue, ticket-management, and asset routes are protected server-side. Employee ticket details and comments are scoped to the authenticated owner; internal technician notes are not shown to employees.
