@@ -34,7 +34,7 @@ Demo credentials (local only): `employee` / `employee123` and `technician` / `te
 3. Sign out, then sign in as `technician`. Open the ticket queue, select the demo ticket, and change its status to **IN_PROGRESS**.
 4. Change the status to **RESOLVED** and enter a resolution note. Resolution requires a note.
 5. Sign out and sign in again as `employee`. Open **My Tickets** to confirm the ticket progress shows the resolved status and note.
-6. Optionally sign in as a different employee account and try opening the demo ticket's progress URL directly; tickets are visible only to their owner.
+6. The interactive demo seeds only `employee` and `technician`, so it has no second employee account for an ownership check. To verify that boundary, run `mvn --batch-mode --no-transfer-progress -Dtest=TicketWebSecurityIntegrationTest test`; its API integration test confirms an employee receives 404 when requesting another employee's ticket.
 
 To restore the original open demo ticket, stop this local demo application and remove only its scratch H2 files, then run the same `h2,demo` command again. This does not remove or reset `data/helpdesk.mv.db`, `data/helpdesk.trace.db`, or any Compose data:
 
