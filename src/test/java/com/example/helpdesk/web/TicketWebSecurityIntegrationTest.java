@@ -9,6 +9,8 @@ import com.example.helpdesk.repo.UserRepository;
 import com.example.helpdesk.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -202,6 +204,43 @@ class TicketWebSecurityIntegrationTest {
                         .content("{\"assetTag\":\"AST-TEST-01\",\"modelName\":\"ThinkPad T14\",\"category\":\"Laptop\",\"status\":\"AVAILABLE\",\"version\":-1}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", ", \"category\":\"   \""})
+    void apiRejectsMissingOrBlankAssetCategoryOnCreate(String categoryField) throws Exception {
+        long previousCount = assetRepository.count();
+        String request = """
+                {"assetTag":"AST-NOCAT", "modelName":"New equipment"%s}
+                """.formatted(categoryField);
+
+        mockMvc.perform(post("/api/assets").header("Authorization", "Bearer " + jwtUtil.generateToken("charlie"))
+                        .contentType("application/json").content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("category: Category is required")));
+
+        assertEquals(previousCount, assetRepository.count());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", ", \"category\":\"   \""})
+    void apiRejectsMissingOrBlankAssetCategoryOnUpdate(String categoryField) throws Exception {
+        Long previousVersion = laptopAsset.getVersion();
+        String request = """
+                {"assetTag":"AST-TEST-01", "modelName":"Different equipment", "version":%d%s}
+                """.formatted(previousVersion, categoryField);
+
+        mockMvc.perform(put("/api/assets/" + laptopAsset.getId())
+                        .header("Authorization", "Bearer " + jwtUtil.generateToken("charlie"))
+                        .contentType("application/json").content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("category: Category is required")));
+
+        assetRepository.flush();
+        Asset stored = assetRepository.findById(laptopAsset.getId()).orElseThrow();
+        assertEquals("Laptop", stored.getCategory());
+        assertEquals("ThinkPad T14", stored.getName());
+        assertEquals(previousVersion, stored.getVersion());
     }
 
     @Test

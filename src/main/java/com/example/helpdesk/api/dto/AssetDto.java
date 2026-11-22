@@ -15,6 +15,7 @@ public class AssetDto {
     @NotBlank(message = "Model name is required")
     @Size(min = 3, max = 120, message = "Model name must be between 3 and 120 characters")
     private String modelName;
+    @NotBlank(message = "Category is required")
     @Size(max = 50, message = "Category cannot exceed 50 characters")
     private String category;
     @Size(max = 100, message = "Manufacturer cannot exceed 100 characters")
