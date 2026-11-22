@@ -4,6 +4,7 @@ import com.example.helpdesk.exception.ResourceNotFoundException;
 import com.example.helpdesk.model.Role;
 import com.example.helpdesk.model.Ticket;
 import com.example.helpdesk.model.TicketAttachment;
+import com.example.helpdesk.model.TicketAttachmentMetadata;
 import com.example.helpdesk.model.User;
 import com.example.helpdesk.repo.TicketAttachmentRepository;
 import com.example.helpdesk.repo.TicketRepository;
@@ -75,8 +76,8 @@ public class TicketAttachmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<TicketAttachment> listForTicket(Long ticketId) {
-        return attachments.findByTicketIdOrderByUploadedAtAsc(ticketId);
+    public List<TicketAttachmentMetadata> listForTicket(Long ticketId) {
+        return attachments.findMetadataByTicketId(ticketId);
     }
 
     /** Returns the attachment when the viewer is a technician or the ticket reporter. */

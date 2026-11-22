@@ -13,7 +13,7 @@
     <h2 id="attachments-heading">Attachments</h2>
     <ul>
       <li th:each="a : ${attachments}"><a th:href="@{'/tickets/' + ${ticket.id} + '/attachments/' + ${a.id} + '/download'}" th:text="${a.filename}">file.pdf</a>
-        <small th:text="${a.contentType + ' · ' + a.sizeBytes + ' bytes · ' + a.uploadedBy.fullName}">info</small></li>
+        <small th:text="${a.contentType + ' · ' + a.sizeBytes + ' bytes · ' + a.uploadedByFullName}">info</small></li>
     </ul>
     <p class="empty" th:if="${#lists.isEmpty(attachments)}">No attachments yet.</p>
     <form method="post" th:action="@{'/tickets/' + ${ticket.id} + '/attachments'}" enctype="multipart/form-data" class="stack-form">
