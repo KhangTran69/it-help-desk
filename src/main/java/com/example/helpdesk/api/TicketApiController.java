@@ -7,6 +7,7 @@ import com.example.helpdesk.api.dto.TicketCommentDto;
 import com.example.helpdesk.dto.TicketEditForm;
 import com.example.helpdesk.model.Ticket;
 import com.example.helpdesk.model.TicketAttachment;
+import com.example.helpdesk.model.TicketAttachmentMetadata;
 import com.example.helpdesk.model.TicketComment;
 import com.example.helpdesk.model.TicketStatus;
 import com.example.helpdesk.service.TicketAttachmentService;
@@ -162,7 +163,7 @@ public class TicketApiController {
                                                           @RequestParam("file") MultipartFile file,
                                                           Authentication authentication) {
         TicketAttachment saved = attachments.store(id, file, authentication.getName());
-        return ResponseEntity.status(HttpStatus.CREATED).body(toAttachmentDto(saved));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toAttachmentDto(TicketAttachmentMetadata.from(saved)));
     }
 
     @GetMapping("/{id}/attachments/{attachmentId}/download")
@@ -189,12 +190,11 @@ public class TicketApiController {
         return ResponseEntity.ok(attachments.listForTicket(id).stream().map(this::toAttachmentDto).toList());
     }
 
-    private com.example.helpdesk.api.dto.AttachmentDto toAttachmentDto(TicketAttachment attachment) {
-        return new com.example.helpdesk.api.dto.AttachmentDto(
-                attachment.getId(), attachment.getTicket().getId(), attachment.getFilename(),
-                attachment.getContentType(), attachment.getSizeBytes(),
-                attachment.getUploadedBy().getUsername(),
-                attachment.getUploadedAt().atOffset(ZoneOffset.UTC));
+    private AttachmentDto toAttachmentDto(TicketAttachmentMetadata attachment) {
+        return new AttachmentDto(
+                attachment.id(), attachment.ticketId(), attachment.filename(),
+                attachment.contentType(), attachment.sizeBytes(),
+                attachment.uploadedByUsername(), attachment.uploadedAt().atOffset(ZoneOffset.UTC));
     }
 
     @GetMapping("/my/{id}")
