@@ -1,17 +1,16 @@
 package com.example.helpdesk.security;
 
-import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
-
-import java.time.Clock;
-import java.time.Duration;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
+import java.time.Duration;
 import java.util.HexFormat;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
 
 /** Per-process login throttle. A shared store is required to coordinate multiple app instances. */
 @Service
@@ -25,8 +24,10 @@ public class LoginAttemptService {
     private final boolean sharedStore;
 
     @Autowired
-    public LoginAttemptService(Clock clock, StringRedisTemplate redis,
-                               @Value("${helpdesk.login-throttle.shared-store:false}") boolean sharedStore) {
+    public LoginAttemptService(
+            Clock clock,
+            StringRedisTemplate redis,
+            @Value("${helpdesk.login-throttle.shared-store:false}") boolean sharedStore) {
         this.clock = clock;
         this.redis = redis;
         this.sharedStore = sharedStore;
@@ -73,15 +74,14 @@ public class LoginAttemptService {
             }
             return state;
         });
-        if (attempts.size() > 10_000) attempts.entrySet().removeIf(entry -> now - entry.getValue().windowStarted > WINDOW_MILLIS);
+        if (attempts.size() > 10_000)
+            attempts.entrySet().removeIf(entry -> now - entry.getValue().windowStarted > WINDOW_MILLIS);
     }
 
     public void recordSuccess(String username, String remoteAddress) {
         String key = key(username, remoteAddress);
         if (sharedStore) {
-            redis.delete(java.util.List.of(
-                    "helpdesk:login:failures:" + key,
-                    "helpdesk:login:blocked:" + key));
+            redis.delete(java.util.List.of("helpdesk:login:failures:" + key, "helpdesk:login:blocked:" + key));
         } else {
             attempts.remove(key);
         }
@@ -103,6 +103,9 @@ public class LoginAttemptService {
         private final long windowStarted;
         private int failures;
         private long blockedUntil;
-        private State(long windowStarted) { this.windowStarted = windowStarted; }
+
+        private State(long windowStarted) {
+            this.windowStarted = windowStarted;
+        }
     }
 }

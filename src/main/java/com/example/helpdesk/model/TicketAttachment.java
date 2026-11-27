@@ -37,8 +37,8 @@ public class TicketAttachment {
 
     public TicketAttachment() {}
 
-    public TicketAttachment(Ticket ticket, String filename, String contentType, long sizeBytes,
-                            User uploadedBy, byte[] content) {
+    public TicketAttachment(
+            Ticket ticket, String filename, String contentType, long sizeBytes, User uploadedBy, byte[] content) {
         this.ticket = ticket;
         this.filename = filename;
         this.contentType = contentType;
@@ -48,12 +48,35 @@ public class TicketAttachment {
         this.uploadedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    public Long getId() { return id; }
-    public Ticket getTicket() { return ticket; }
-    public String getFilename() { return filename; }
-    public String getContentType() { return contentType; }
-    public long getSizeBytes() { return sizeBytes; }
-    public User getUploadedBy() { return uploadedBy; }
-    public LocalDateTime getUploadedAt() { return uploadedAt; }
-    public byte[] getContent() { return content; }
+    public Long getId() {
+        return id;
+    }
+
+    public Ticket getTicket() {
+        return ticket;
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public long getSizeBytes() {
+        return sizeBytes;
+    }
+
+    public User getUploadedBy() {
+        return uploadedBy;
+    }
+
+    public LocalDateTime getUploadedAt() {
+        return uploadedAt;
+    }
+
+    public byte[] getContent() {
+        return content;
+    }
 }

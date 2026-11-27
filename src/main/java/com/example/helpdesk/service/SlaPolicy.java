@@ -3,14 +3,13 @@ package com.example.helpdesk.service;
 import com.example.helpdesk.model.Priority;
 import com.example.helpdesk.model.Ticket;
 import com.example.helpdesk.model.TicketStatus;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 /** Elapsed-time SLA clock. Resolved and closed tickets pause; reopening resumes remaining time. */
 @Component
@@ -18,10 +17,11 @@ public class SlaPolicy {
     private final Clock clock;
     private final Map<Priority, Long> targets;
 
-    public SlaPolicy(Clock clock,
-                     @Value("${helpdesk.sla.targets.low:1209600}") long low,
-                     @Value("${helpdesk.sla.targets.medium:259200}") long medium,
-                     @Value("${helpdesk.sla.targets.high:86400}") long high) {
+    public SlaPolicy(
+            Clock clock,
+            @Value("${helpdesk.sla.targets.low:1209600}") long low,
+            @Value("${helpdesk.sla.targets.medium:259200}") long medium,
+            @Value("${helpdesk.sla.targets.high:86400}") long high) {
         this.clock = clock;
         this.targets = Map.of(Priority.LOW, low, Priority.MEDIUM, medium, Priority.HIGH, high);
     }
@@ -60,7 +60,8 @@ public class SlaPolicy {
             ticket.setSlaDueAt(null);
         } else if (wasStopped && !willStop) {
             ticket.setSlaStartedAt(now);
-            ticket.setSlaDueAt(now.plusSeconds(Math.max(0, ticket.getSlaTargetSeconds() - ticket.getSlaElapsedSeconds())));
+            ticket.setSlaDueAt(
+                    now.plusSeconds(Math.max(0, ticket.getSlaTargetSeconds() - ticket.getSlaElapsedSeconds())));
         }
     }
 
@@ -73,7 +74,9 @@ public class SlaPolicy {
     }
 
     private long elapsedAt(Ticket ticket, LocalDateTime now) {
-        long running = ticket.getSlaStartedAt() == null ? 0 : Math.max(0, Duration.between(ticket.getSlaStartedAt(), now).getSeconds());
+        long running = ticket.getSlaStartedAt() == null
+                ? 0
+                : Math.max(0, Duration.between(ticket.getSlaStartedAt(), now).getSeconds());
         return ticket.getSlaElapsedSeconds() + running;
     }
 

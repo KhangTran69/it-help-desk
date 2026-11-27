@@ -33,26 +33,39 @@ public class NotificationService {
         Ticket ticket = event.getTicket();
         User actor = event.getActor();
         switch (event.getAction()) {
-            case "STATUS_CHANGED" -> notify(ticket, ticket.getReporter(), actor,
+            case "STATUS_CHANGED" -> notify(
+                    ticket,
+                    ticket.getReporter(),
+                    actor,
                     "Ticket #" + ticket.getId() + " status changed",
-                    ticket.getTitle() + " is now " + event.getNewValue() + ". "
-                            + safeDetails(event.getDetails()));
+                    ticket.getTitle() + " is now " + event.getNewValue() + ". " + safeDetails(event.getDetails()));
             case "ASSIGNED" -> {
-                notify(ticket, ticket.getTechnician(), actor,
+                notify(
+                        ticket,
+                        ticket.getTechnician(),
+                        actor,
                         "Ticket #" + ticket.getId() + " assigned to you",
                         "You were assigned: " + ticket.getTitle());
-                notify(ticket, ticket.getReporter(), actor,
+                notify(
+                        ticket,
+                        ticket.getReporter(),
+                        actor,
                         "Ticket #" + ticket.getId() + " assigned",
                         ticket.getTitle() + " is being handled by "
-                                + (ticket.getTechnician() != null ? ticket.getTechnician().getUsername() : "a technician")
+                                + (ticket.getTechnician() != null
+                                        ? ticket.getTechnician().getUsername()
+                                        : "a technician")
                                 + ".");
             }
             case "FIELD_CHANGED" -> {
                 if ("priority".equals(event.getFieldChanged())) {
-                    notify(ticket, ticket.getReporter(), actor,
+                    notify(
+                            ticket,
+                            ticket.getReporter(),
+                            actor,
                             "Ticket #" + ticket.getId() + " priority changed",
-                            ticket.getTitle() + ": priority changed from "
-                                    + safeValue(event.getPreviousValue()) + " to " + safeValue(event.getNewValue()) + ".");
+                            ticket.getTitle() + ": priority changed from " + safeValue(event.getPreviousValue())
+                                    + " to " + safeValue(event.getNewValue()) + ".");
                 }
             }
             default -> {

@@ -25,6 +25,7 @@ public class Asset {
     private String category;
     private String manufacturer;
     private String serialNumber;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 
@@ -50,41 +51,107 @@ public class Asset {
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getVersion() { return version; }
-    public void setVersion(Long value) { version = value; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getAssetTag() { return assetTag; }
-    public void setAssetTag(String v) { assetTag = v; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String v) { name = v; }
+    public Long getVersion() {
+        return version;
+    }
 
-    public String getCategory() { return category; }
-    public void setCategory(String v) { category = v; }
+    public void setVersion(Long value) {
+        version = value;
+    }
 
-    public String getManufacturer() { return manufacturer; }
-    public void setManufacturer(String v) { manufacturer = v; }
+    public String getAssetTag() {
+        return assetTag;
+    }
 
-    public String getSerialNumber() { return serialNumber; }
-    public void setSerialNumber(String v) { serialNumber = v; }
+    public void setAssetTag(String v) {
+        assetTag = v;
+    }
 
-    public AssetStatus getStatus() { return status; }
-    public void setStatus(AssetStatus v) { status = v; }
+    public String getName() {
+        return name;
+    }
 
-    public User getAssignedUser() { return assignedUser; }
-    public void setAssignedUser(User v) { assignedUser = v; }
+    public void setName(String v) {
+        name = v;
+    }
 
-    public LocalDate getPurchaseDate() { return purchaseDate; }
-    public void setPurchaseDate(LocalDate v) { purchaseDate = v; }
+    public String getCategory() {
+        return category;
+    }
 
-    public String getNotes() { return notes; }
-    public void setNotes(String v) { notes = v; }
+    public void setCategory(String v) {
+        category = v;
+    }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime v) { createdAt = v; }
+    public String getManufacturer() {
+        return manufacturer;
+    }
 
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime v) { updatedAt = v; }
+    public void setManufacturer(String v) {
+        manufacturer = v;
+    }
+
+    public String getSerialNumber() {
+        return serialNumber;
+    }
+
+    public void setSerialNumber(String v) {
+        serialNumber = v;
+    }
+
+    public AssetStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(AssetStatus v) {
+        status = v;
+    }
+
+    public User getAssignedUser() {
+        return assignedUser;
+    }
+
+    public void setAssignedUser(User v) {
+        assignedUser = v;
+    }
+
+    public LocalDate getPurchaseDate() {
+        return purchaseDate;
+    }
+
+    public void setPurchaseDate(LocalDate v) {
+        purchaseDate = v;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String v) {
+        notes = v;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime v) {
+        createdAt = v;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime v) {
+        updatedAt = v;
+    }
 }

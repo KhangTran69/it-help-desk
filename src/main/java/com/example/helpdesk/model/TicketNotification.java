@@ -41,12 +41,35 @@ public class TicketNotification {
         this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    public Long getId() { return id; }
-    public Ticket getTicket() { return ticket; }
-    public User getRecipient() { return recipient; }
-    public String getTitle() { return title; }
-    public String getMessage() { return message; }
-    public boolean isRead() { return read; }
-    public void markRead() { this.read = true; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public Ticket getTicket() {
+        return ticket;
+    }
+
+    public User getRecipient() {
+        return recipient;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public boolean isRead() {
+        return read;
+    }
+
+    public void markRead() {
+        this.read = true;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

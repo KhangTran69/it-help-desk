@@ -1,5 +1,14 @@
 package com.example.helpdesk.web;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.example.helpdesk.model.Role;
 import com.example.helpdesk.model.User;
 import com.example.helpdesk.repo.UserRepository;
@@ -10,15 +19,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = "helpdesk.registration-enabled=true")
 @AutoConfigureMockMvc
@@ -45,7 +45,8 @@ class RegistrationControllerEnabledTest {
     void enabledRegistrationPersistsEmployeeWithEncodedPassword() throws Exception {
         String rawPassword = "employee-password-123";
 
-        mockMvc.perform(post("/register").with(csrf())
+        mockMvc.perform(post("/register")
+                        .with(csrf())
                         .param("username", "new-employee")
                         .param("fullName", "New Employee")
                         .param("password", rawPassword)
@@ -61,13 +62,15 @@ class RegistrationControllerEnabledTest {
     @Test
     void registrationRejectsUsernameLongerThanDatabaseColumn() throws Exception {
         String username = "u".repeat(81);
-        mockMvc.perform(post("/register").with(csrf())
+        mockMvc.perform(post("/register")
+                        .with(csrf())
                         .param("username", username)
                         .param("fullName", "Long Username")
                         .param("password", "employee-password-123")
                         .param("confirmPassword", "employee-password-123"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Username cannot exceed 80 characters.")));
+                .andExpect(content()
+                        .string(org.hamcrest.Matchers.containsString("Username cannot exceed 80 characters.")));
 
         assertTrue(userRepository.findByUsername(username).isEmpty());
     }
@@ -75,13 +78,15 @@ class RegistrationControllerEnabledTest {
     @Test
     void registrationRejectsFullNameLongerThanDatabaseColumn() throws Exception {
         String fullName = "n".repeat(121);
-        mockMvc.perform(post("/register").with(csrf())
+        mockMvc.perform(post("/register")
+                        .with(csrf())
                         .param("username", "long-full-name")
                         .param("fullName", fullName)
                         .param("password", "employee-password-123")
                         .param("confirmPassword", "employee-password-123"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Full name cannot exceed 120 characters.")));
+                .andExpect(content()
+                        .string(org.hamcrest.Matchers.containsString("Full name cannot exceed 120 characters.")));
 
         assertTrue(userRepository.findByUsername("long-full-name").isEmpty());
     }

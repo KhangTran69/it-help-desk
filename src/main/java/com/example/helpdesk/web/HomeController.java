@@ -24,8 +24,9 @@ public class HomeController {
 
     @GetMapping("/")
     String dashboard(Authentication authentication, Model model) {
-        boolean technician = authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()));
+        boolean technician = authentication != null
+                && authentication.getAuthorities().stream()
+                        .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()));
         if (!technician) return "redirect:/tickets/new";
         User current = users.findByUsername(authentication.getName()).orElseThrow();
         model.addAttribute("open", tickets.count(TicketStatus.OPEN));

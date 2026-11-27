@@ -1,9 +1,9 @@
 package com.example.helpdesk.config;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class BenchmarkDataInitializerTest {
 

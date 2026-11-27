@@ -17,7 +17,9 @@ public class CurrentUserModelAdvice {
 
     @ModelAttribute("currentUser")
     public User currentUser(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
             return null;
         }
         return users.findByUsername(authentication.getName()).orElse(null);
@@ -25,7 +27,8 @@ public class CurrentUserModelAdvice {
 
     @ModelAttribute("isTechnician")
     public boolean isTechnician(Authentication authentication) {
-        return authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()));
+        return authentication != null
+                && authentication.getAuthorities().stream()
+                        .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()));
     }
 }

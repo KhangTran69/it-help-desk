@@ -36,32 +36,74 @@ public class TicketEditForm {
         form.setCategory(ticket.getCategory());
         form.setPriority(ticket.getPriority());
         form.setStatus(ticket.getStatus());
-        form.setTechnicianId(ticket.getTechnician() != null ? ticket.getTechnician().getId() : null);
+        form.setTechnicianId(
+                ticket.getTechnician() != null ? ticket.getTechnician().getId() : null);
         form.setResolutionNotes(ticket.getResolutionNotes());
         form.setVersion(ticket.getVersion());
         return form;
     }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public String getTitle() {
+        return title;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public void setTitle(String title) {
+        this.title = title;
+    }
 
-    public Category getCategory() { return category; }
-    public void setCategory(Category category) { this.category = category; }
+    public String getDescription() {
+        return description;
+    }
 
-    public Priority getPriority() { return priority; }
-    public void setPriority(Priority priority) { this.priority = priority; }
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-    public TicketStatus getStatus() { return status; }
-    public void setStatus(TicketStatus status) { this.status = status; }
+    public Category getCategory() {
+        return category;
+    }
 
-    public Long getTechnicianId() { return technicianId; }
-    public void setTechnicianId(Long technicianId) { this.technicianId = technicianId; }
+    public void setCategory(Category category) {
+        this.category = category;
+    }
 
-    public String getResolutionNotes() { return resolutionNotes; }
-    public void setResolutionNotes(String resolutionNotes) { this.resolutionNotes = resolutionNotes; }
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
+    public Priority getPriority() {
+        return priority;
+    }
+
+    public void setPriority(Priority priority) {
+        this.priority = priority;
+    }
+
+    public TicketStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(TicketStatus status) {
+        this.status = status;
+    }
+
+    public Long getTechnicianId() {
+        return technicianId;
+    }
+
+    public void setTechnicianId(Long technicianId) {
+        this.technicianId = technicianId;
+    }
+
+    public String getResolutionNotes() {
+        return resolutionNotes;
+    }
+
+    public void setResolutionNotes(String resolutionNotes) {
+        this.resolutionNotes = resolutionNotes;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
 }

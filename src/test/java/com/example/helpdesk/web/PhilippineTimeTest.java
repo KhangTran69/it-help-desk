@@ -1,10 +1,9 @@
 package com.example.helpdesk.web;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.LocalDateTime;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.Test;
 
 class PhilippineTimeTest {
     private final PhilippineTime time = new PhilippineTime();

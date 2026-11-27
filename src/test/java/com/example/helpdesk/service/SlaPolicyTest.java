@@ -1,15 +1,14 @@
 package com.example.helpdesk.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.example.helpdesk.model.Priority;
 import com.example.helpdesk.model.Ticket;
 import com.example.helpdesk.model.TicketStatus;
-import org.junit.jupiter.api.Test;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class SlaPolicyTest {
     @Test
@@ -50,11 +49,32 @@ class SlaPolicyTest {
 
     private static final class MutableClock extends Clock {
         private Instant now;
-        private MutableClock(Instant now) { this.now = now; }
-        void advanceSeconds(long seconds) { now = now.plusSeconds(seconds); }
-        java.time.LocalDateTime localNow() { return java.time.LocalDateTime.ofInstant(now, ZoneId.of("UTC")); }
-        @Override public ZoneId getZone() { return ZoneId.of("UTC"); }
-        @Override public Clock withZone(ZoneId zone) { return this; }
-        @Override public Instant instant() { return now; }
+
+        private MutableClock(Instant now) {
+            this.now = now;
+        }
+
+        void advanceSeconds(long seconds) {
+            now = now.plusSeconds(seconds);
+        }
+
+        java.time.LocalDateTime localNow() {
+            return java.time.LocalDateTime.ofInstant(now, ZoneId.of("UTC"));
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneId.of("UTC");
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
     }
 }

@@ -1,27 +1,27 @@
 package com.example.helpdesk.web;
 
+import com.example.helpdesk.exception.AssetEditConflictException;
 import com.example.helpdesk.exception.ResourceNotFoundException;
 import com.example.helpdesk.exception.TicketEditConflictException;
-import com.example.helpdesk.exception.AssetEditConflictException;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import jakarta.persistence.OptimisticLockException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.ui.Model;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.servlet.resource.NoResourceFoundException;
-import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.ResponseEntity;
-import jakarta.servlet.http.HttpServletRequest;
-import java.util.Map;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -79,7 +79,8 @@ public class GlobalExceptionHandler {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
         String message = ex.getReason() == null ? status.getReasonPhrase() : ex.getReason();
         if (request.getRequestURI().startsWith("/api/")) {
-            return ResponseEntity.status(status).body(Map.of("status", status.value(), "error", status.getReasonPhrase(), "message", message));
+            return ResponseEntity.status(status)
+                    .body(Map.of("status", status.value(), "error", status.getReasonPhrase(), "message", message));
         }
         model.addAttribute("status", status.value());
         model.addAttribute("error", status.getReasonPhrase());
@@ -89,8 +90,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
-    public String handleUnsupportedMethod(HttpRequestMethodNotSupportedException ex, Model model,
-                                          jakarta.servlet.http.HttpServletRequest request) {
+    public String handleUnsupportedMethod(
+            HttpRequestMethodNotSupportedException ex, Model model, jakarta.servlet.http.HttpServletRequest request) {
         log.warn("Unsupported method {} for {}", ex.getMethod(), request.getRequestURI());
         model.addAttribute("status", 405);
         model.addAttribute("error", "Action not available");
@@ -130,7 +131,9 @@ public class GlobalExceptionHandler {
     public String handleOptimisticLock(Exception ex, Model model) {
         model.addAttribute("status", 409);
         model.addAttribute("error", "Record changed by another user");
-        model.addAttribute("message", "Someone saved a newer version while you were making changes. Reload the record before trying again.");
+        model.addAttribute(
+                "message",
+                "Someone saved a newer version while you were making changes. Reload the record before trying again.");
         return "error";
     }
 

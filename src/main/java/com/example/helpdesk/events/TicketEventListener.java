@@ -19,8 +19,11 @@ public class TicketEventListener {
 
     @EventListener
     public void handleTicketEvent(TicketEvent event) {
-        log.info("Processing ticket event: {} for ticket {} by user {}",
-                event.getAction(), event.getTicket().getId(), event.getActor().getUsername());
+        log.info(
+                "Processing ticket event: {} for ticket {} by user {}",
+                event.getAction(),
+                event.getTicket().getId(),
+                event.getActor().getUsername());
 
         TicketHistory history;
         if (event.getFieldChanged() != null) {
@@ -31,15 +34,9 @@ public class TicketEventListener {
                     event.getDetails(),
                     event.getFieldChanged(),
                     event.getPreviousValue(),
-                    event.getNewValue()
-            );
+                    event.getNewValue());
         } else {
-            history = new TicketHistory(
-                    event.getTicket(),
-                    event.getActor(),
-                    event.getAction(),
-                    event.getDetails()
-            );
+            history = new TicketHistory(event.getTicket(), event.getActor(), event.getAction(), event.getDetails());
         }
 
         historyRepository.save(history);

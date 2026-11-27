@@ -1,8 +1,9 @@
 package com.example.helpdesk.security;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -10,11 +11,9 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 class LoginAttemptServiceRedisTest {
     @Test
@@ -24,7 +23,8 @@ class LoginAttemptServiceRedisTest {
         Map<String, Long> counterExpiry = new HashMap<>();
         Map<String, Long> blockExpiry = new HashMap<>();
         StringRedisTemplate redis = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked") ValueOperations<String, String> values = mock(ValueOperations.class);
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, String> values = mock(ValueOperations.class);
         when(redis.opsForValue()).thenReturn(values);
         when(values.increment(anyString())).thenAnswer(invocation -> {
             String key = invocation.getArgument(0);
@@ -38,10 +38,14 @@ class LoginAttemptServiceRedisTest {
             return true;
         });
         doAnswer(invocation -> {
-            String key = invocation.getArgument(0);
-            blockExpiry.put(key, clock.millis() + invocation.<Duration>getArgument(2).toMillis());
-            return null;
-        }).when(values).set(anyString(), eq("1"), any(Duration.class));
+                    String key = invocation.getArgument(0);
+                    blockExpiry.put(
+                            key,
+                            clock.millis() + invocation.<Duration>getArgument(2).toMillis());
+                    return null;
+                })
+                .when(values)
+                .set(anyString(), eq("1"), any(Duration.class));
         when(redis.hasKey(anyString())).thenAnswer(invocation -> {
             Long expiresAt = blockExpiry.get(invocation.getArgument(0));
             return expiresAt != null && expiresAt > clock.millis();
@@ -59,9 +63,24 @@ class LoginAttemptServiceRedisTest {
 
     private static final class MutableClock extends Clock {
         private Instant instant = Instant.parse("2026-01-01T00:00:00Z");
-        void advance(Duration duration) { instant = instant.plus(duration); }
-        @Override public ZoneId getZone() { return ZoneId.of("UTC"); }
-        @Override public Clock withZone(ZoneId zone) { return this; }
-        @Override public Instant instant() { return instant; }
+
+        void advance(Duration duration) {
+            instant = instant.plus(duration);
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneId.of("UTC");
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return instant;
+        }
     }
 }

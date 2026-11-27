@@ -1,5 +1,9 @@
 package com.example.helpdesk.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 import com.example.helpdesk.dto.AssetForm;
 import com.example.helpdesk.exception.ResourceNotFoundException;
 import com.example.helpdesk.model.Asset;
@@ -8,23 +12,19 @@ import com.example.helpdesk.model.Role;
 import com.example.helpdesk.model.User;
 import com.example.helpdesk.repo.AssetRepository;
 import com.example.helpdesk.repo.UserRepository;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 class AssetServiceTest {
 
     @Mock
     AssetRepository repo;
+
     @Mock
     UserRepository users;
 

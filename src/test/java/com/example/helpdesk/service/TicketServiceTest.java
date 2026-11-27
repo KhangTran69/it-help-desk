@@ -1,38 +1,39 @@
 package com.example.helpdesk.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 import com.example.helpdesk.dto.TicketEditForm;
 import com.example.helpdesk.events.TicketEvent;
 import com.example.helpdesk.exception.ResourceNotFoundException;
 import com.example.helpdesk.exception.TicketEditConflictException;
 import com.example.helpdesk.model.*;
-import com.example.helpdesk.repo.TicketNotificationRepository;
 import com.example.helpdesk.repo.TicketHistoryRepository;
+import com.example.helpdesk.repo.TicketNotificationRepository;
 import com.example.helpdesk.repo.TicketRepository;
 import com.example.helpdesk.repo.UserRepository;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
-
-import java.time.LocalDateTime;
-import java.time.Clock;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class TicketServiceTest {
 
     @Mock
     TicketRepository tickets;
+
     @Mock
     UserRepository users;
+
     @Mock
     TicketHistoryRepository history;
 
@@ -78,17 +79,17 @@ class TicketServiceTest {
     void resolvedTicketRequiresNotes() {
         Ticket ticket = new Ticket();
         assertThrows(IllegalArgumentException.class, () -> service.updateStatus(1L, TicketStatus.RESOLVED, "", "tech"));
-        assertThrows(IllegalArgumentException.class, () -> service.updateStatus(1L, TicketStatus.CLOSED, "   ", "tech"));
+        assertThrows(
+                IllegalArgumentException.class, () -> service.updateStatus(1L, TicketStatus.CLOSED, "   ", "tech"));
     }
 
     @Test
     void employeeCannotUpdateStatusOrAssign() {
         when(users.findByUsername("alice")).thenReturn(Optional.of(employeeAlice));
 
-        assertThrows(AccessDeniedException.class,
-                () -> service.updateStatus(1L, TicketStatus.IN_PROGRESS, null, "alice"));
-        assertThrows(AccessDeniedException.class,
-                () -> service.assign(1L, technicianCharlie.getId(), "alice"));
+        assertThrows(
+                AccessDeniedException.class, () -> service.updateStatus(1L, TicketStatus.IN_PROGRESS, null, "alice"));
+        assertThrows(AccessDeniedException.class, () -> service.assign(1L, technicianCharlie.getId(), "alice"));
         verify(tickets, never()).save(any());
     }
 
@@ -101,8 +102,8 @@ class TicketServiceTest {
         when(tickets.findById(9L)).thenReturn(Optional.of(existing));
         when(users.findById(employeeAlice.getId())).thenReturn(Optional.of(employeeAlice));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> service.assign(9L, employeeAlice.getId(), "charlie"));
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class, () -> service.assign(9L, employeeAlice.getId(), "charlie"));
 
         assertEquals("Assignee must be a technician", ex.getMessage());
         verify(tickets, never()).save(any());
@@ -124,11 +125,19 @@ class TicketServiceTest {
         NotificationService notificationService = new NotificationService(notifications);
         ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
         doAnswer(invocation -> {
-            notificationService.onTicketEvent(invocation.getArgument(0));
-            return null;
-        }).when(publisher).publishEvent(any(TicketEvent.class));
-        TicketService notificationAwareService = new TicketService(tickets, users, history, null, publisher,
-                null, new SlaPolicy(Clock.systemUTC(), 1209600, 259200, 86400));
+                    notificationService.onTicketEvent(invocation.getArgument(0));
+                    return null;
+                })
+                .when(publisher)
+                .publishEvent(any(TicketEvent.class));
+        TicketService notificationAwareService = new TicketService(
+                tickets,
+                users,
+                history,
+                null,
+                publisher,
+                null,
+                new SlaPolicy(Clock.systemUTC(), 1209600, 259200, 86400));
 
         when(users.findByUsername("charlie")).thenReturn(Optional.of(technicianCharlie));
         when(tickets.findById(9L)).thenReturn(Optional.of(ticket));
@@ -139,12 +148,13 @@ class TicketServiceTest {
 
         ArgumentCaptor<TicketNotification> captured = ArgumentCaptor.forClass(TicketNotification.class);
         verify(notifications, times(2)).save(captured.capture());
-        assertTrue(captured.getAllValues().stream().anyMatch(notification ->
-                notification.getRecipient() == newTechnician));
-        assertFalse(captured.getAllValues().stream().anyMatch(notification ->
-                notification.getRecipient() == previousTechnician));
-        assertTrue(captured.getAllValues().stream().anyMatch(notification ->
-                notification.getRecipient() == employeeAlice && notification.getMessage().contains("evan")));
+        assertTrue(captured.getAllValues().stream()
+                .anyMatch(notification -> notification.getRecipient() == newTechnician));
+        assertFalse(captured.getAllValues().stream()
+                .anyMatch(notification -> notification.getRecipient() == previousTechnician));
+        assertTrue(captured.getAllValues().stream()
+                .anyMatch(notification -> notification.getRecipient() == employeeAlice
+                        && notification.getMessage().contains("evan")));
     }
 
     @Test
@@ -403,14 +413,16 @@ class TicketServiceTest {
 
         TicketHistory titleChange = captor.getAllValues().stream()
                 .filter(h -> "title".equals(h.getFieldChanged()))
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseThrow();
         assertEquals("Old Subject", titleChange.getPreviousValue());
         assertEquals("New Subject", titleChange.getNewValue());
         assertSame(technicianCharlie, titleChange.getActor());
 
         TicketHistory prioChange = captor.getAllValues().stream()
                 .filter(h -> "priority".equals(h.getFieldChanged()))
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseThrow();
         assertEquals("LOW", prioChange.getPreviousValue());
         assertEquals("HIGH", prioChange.getNewValue());
     }

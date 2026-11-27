@@ -1,9 +1,19 @@
 package com.example.helpdesk.web;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 import com.example.helpdesk.model.*;
 import com.example.helpdesk.repo.AssetRepository;
-import com.example.helpdesk.repo.TicketHistoryRepository;
 import com.example.helpdesk.repo.TicketCommentRepository;
+import com.example.helpdesk.repo.TicketHistoryRepository;
 import com.example.helpdesk.repo.TicketRepository;
 import com.example.helpdesk.repo.UserRepository;
 import com.example.helpdesk.security.JwtUtil;
@@ -20,16 +30,6 @@ import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequ
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -77,9 +77,11 @@ class TicketWebSecurityIntegrationTest {
         assetRepository.deleteAll();
         userRepository.deleteAll();
 
-        employeeAlice = userRepository.save(new User("alice", encoder.encode("alice123"), "Alice Adams", Role.EMPLOYEE));
+        employeeAlice =
+                userRepository.save(new User("alice", encoder.encode("alice123"), "Alice Adams", Role.EMPLOYEE));
         employeeBob = userRepository.save(new User("bob", encoder.encode("bob123"), "Bob Baker", Role.EMPLOYEE));
-        techCharlie = userRepository.save(new User("charlie", encoder.encode("charlie123"), "Charlie Tech", Role.TECHNICIAN));
+        techCharlie =
+                userRepository.save(new User("charlie", encoder.encode("charlie123"), "Charlie Tech", Role.TECHNICIAN));
 
         aliceOpenTicket = new Ticket();
         aliceOpenTicket.setTitle("Alice Open Ticket");
@@ -121,9 +123,9 @@ class TicketWebSecurityIntegrationTest {
     @WithMockUser(username = "charlie", roles = "TECHNICIAN")
     void apiRejectsInvalidPaginationAndUnknownSortFieldsAsBadRequest() throws Exception {
         mockMvc.perform(get("/api/tickets").param("page", "-1"))
-                .andExpect(status().isBadRequest()).andExpect(content().contentTypeCompatibleWith("application/json"));
-        mockMvc.perform(get("/api/tickets").param("size", "101"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith("application/json"));
+        mockMvc.perform(get("/api/tickets").param("size", "101")).andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/tickets").param("sortBy", "reporter.password"))
                 .andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/assets").param("sortBy", "assignedUser.password"))
@@ -132,11 +134,12 @@ class TicketWebSecurityIntegrationTest {
 
     @Test
     void disablingAccountRejectsExistingBrowserSessionAndJwt() throws Exception {
-        var loginResult = mockMvc.perform(SecurityMockMvcRequestBuilders.formLogin()
-                        .user("alice").password("alice123"))
-                .andExpect(status().is3xxRedirection()).andReturn();
-        org.springframework.mock.web.MockHttpSession session =
-                (org.springframework.mock.web.MockHttpSession) loginResult.getRequest().getSession(false);
+        var loginResult = mockMvc.perform(
+                        SecurityMockMvcRequestBuilders.formLogin().user("alice").password("alice123"))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+        org.springframework.mock.web.MockHttpSession session = (org.springframework.mock.web.MockHttpSession)
+                loginResult.getRequest().getSession(false);
         assertNotNull(session);
         String token = jwtUtil.generateToken("alice");
 
@@ -148,7 +151,8 @@ class TicketWebSecurityIntegrationTest {
                 .andExpect(redirectedUrl("/login?disabled"));
         mockMvc.perform(get("/api/tickets/my").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(post("/api/auth/login").contentType("application/json")
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType("application/json")
                         .content("{\"username\":\"alice\",\"password\":\"alice123\"}"))
                 .andExpect(status().isUnauthorized());
     }
@@ -158,7 +162,9 @@ class TicketWebSecurityIntegrationTest {
         String apiUser = "api-throttle-check";
         String apiBody = "{\"username\":\"" + apiUser + "\",\"password\":\"wrong-password\"}";
         for (int i = 0; i < 5; i++) {
-            mockMvc.perform(post("/api/auth/login").contentType("application/json").content(apiBody))
+            mockMvc.perform(post("/api/auth/login")
+                            .contentType("application/json")
+                            .content(apiBody))
                     .andExpect(status().isUnauthorized());
         }
         mockMvc.perform(post("/api/auth/login").contentType("application/json").content(apiBody))
@@ -166,10 +172,16 @@ class TicketWebSecurityIntegrationTest {
 
         String browserUser = "browser-throttle-check";
         for (int i = 0; i < 5; i++) {
-            mockMvc.perform(post("/login").with(csrf()).param("username", browserUser).param("password", "wrong-password"))
+            mockMvc.perform(post("/login")
+                            .with(csrf())
+                            .param("username", browserUser)
+                            .param("password", "wrong-password"))
                     .andExpect(status().is3xxRedirection());
         }
-        mockMvc.perform(post("/login").with(csrf()).param("username", browserUser).param("password", "wrong-password"))
+        mockMvc.perform(post("/login")
+                        .with(csrf())
+                        .param("username", browserUser)
+                        .param("password", "wrong-password"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/login?throttled"));
     }
@@ -185,7 +197,8 @@ class TicketWebSecurityIntegrationTest {
     void overdueFilterShowsOnlyActiveTicketsPastTheirSla() throws Exception {
         aliceOpenTicket.setSlaTargetSeconds(3600);
         aliceOpenTicket.setSlaElapsedSeconds(3601);
-        aliceOpenTicket.setSlaDueAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(1));
+        aliceOpenTicket.setSlaDueAt(
+                java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(1));
         ticketRepository.save(aliceOpenTicket);
 
         mockMvc.perform(get("/tickets").param("overdue", "true"))
@@ -199,9 +212,12 @@ class TicketWebSecurityIntegrationTest {
     @Test
     void assetApiRejectsStaleVersion() throws Exception {
         String technicianToken = "Bearer " + jwtUtil.generateToken("charlie");
-        mockMvc.perform(put("/api/assets/" + laptopAsset.getId())
-                        .header("Authorization", technicianToken).contentType("application/json")
-                        .content("{\"assetTag\":\"AST-TEST-01\",\"modelName\":\"ThinkPad T14\",\"category\":\"Laptop\",\"status\":\"AVAILABLE\",\"version\":-1}"))
+        mockMvc.perform(
+                        put("/api/assets/" + laptopAsset.getId())
+                                .header("Authorization", technicianToken)
+                                .contentType("application/json")
+                                .content(
+                                        "{\"assetTag\":\"AST-TEST-01\",\"modelName\":\"ThinkPad T14\",\"category\":\"Laptop\",\"status\":\"AVAILABLE\",\"version\":-1}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409));
     }
@@ -212,10 +228,13 @@ class TicketWebSecurityIntegrationTest {
         long previousCount = assetRepository.count();
         String request = """
                 {"assetTag":"AST-NOCAT", "modelName":"New equipment"%s}
-                """.formatted(categoryField);
+                """
+                .formatted(categoryField);
 
-        mockMvc.perform(post("/api/assets").header("Authorization", "Bearer " + jwtUtil.generateToken("charlie"))
-                        .contentType("application/json").content(request))
+        mockMvc.perform(post("/api/assets")
+                        .header("Authorization", "Bearer " + jwtUtil.generateToken("charlie"))
+                        .contentType("application/json")
+                        .content(request))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(containsString("category: Category is required")));
 
@@ -226,13 +245,16 @@ class TicketWebSecurityIntegrationTest {
     @ValueSource(strings = {"", ", \"category\":\"   \""})
     void apiRejectsMissingOrBlankAssetCategoryOnUpdate(String categoryField) throws Exception {
         Long previousVersion = laptopAsset.getVersion();
-        String request = """
+        String request =
+                """
                 {"assetTag":"AST-TEST-01", "modelName":"Different equipment", "version":%d%s}
-                """.formatted(previousVersion, categoryField);
+                """
+                        .formatted(previousVersion, categoryField);
 
         mockMvc.perform(put("/api/assets/" + laptopAsset.getId())
                         .header("Authorization", "Bearer " + jwtUtil.generateToken("charlie"))
-                        .contentType("application/json").content(request))
+                        .contentType("application/json")
+                        .content(request))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(containsString("category: Category is required")));
 
@@ -246,8 +268,13 @@ class TicketWebSecurityIntegrationTest {
     @Test
     void browserSessionCookieCannotAuthenticateRestApiButBearerTokenCan() throws Exception {
         var login = SecurityMockMvcRequestBuilders.formLogin("/login")
-                .user("username", "alice").password("password", "alice123");
-        var session = mockMvc.perform(login).andExpect(status().is3xxRedirection()).andReturn().getRequest().getSession(false);
+                .user("username", "alice")
+                .password("password", "alice123");
+        var session = mockMvc.perform(login)
+                .andExpect(status().is3xxRedirection())
+                .andReturn()
+                .getRequest()
+                .getSession(false);
 
         mockMvc.perform(get("/api/tickets/my").session((org.springframework.mock.web.MockHttpSession) session))
                 .andExpect(status().isUnauthorized())
@@ -264,15 +291,20 @@ class TicketWebSecurityIntegrationTest {
         String employeeToken = "Bearer " + jwtUtil.generateToken("alice");
         String technicianToken = "Bearer " + jwtUtil.generateToken("charlie");
 
-        mockMvc.perform(post("/api/tickets").header("Authorization", employeeToken)
-                        .contentType("application/json").content("{}"))
+        mockMvc.perform(post("/api/tickets")
+                        .header("Authorization", employeeToken)
+                        .contentType("application/json")
+                        .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.message").exists());
 
-        mockMvc.perform(post("/api/tickets").header("Authorization", employeeToken)
-                        .contentType("application/json")
-                        .content("{\"title\":\"Employee API ticket\",\"description\":\"A valid API ticket description\",\"category\":\"OTHER\",\"priority\":\"MEDIUM\"}"))
+        mockMvc.perform(
+                        post("/api/tickets")
+                                .header("Authorization", employeeToken)
+                                .contentType("application/json")
+                                .content(
+                                        "{\"title\":\"Employee API ticket\",\"description\":\"A valid API ticket description\",\"category\":\"OTHER\",\"priority\":\"MEDIUM\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.version").exists())
                 .andExpect(jsonPath("$.createdAt").exists());
@@ -288,26 +320,32 @@ class TicketWebSecurityIntegrationTest {
                 .andExpect(status().isNotFound());
 
         mockMvc.perform(post("/api/tickets/" + aliceOpenTicket.getId() + "/comments")
-                        .header("Authorization", employeeToken).contentType("application/json")
+                        .header("Authorization", employeeToken)
+                        .contentType("application/json")
                         .content("{\"content\":\"Please update me\",\"internalNote\":true}"))
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(post("/api/tickets/" + aliceOpenTicket.getId() + "/comments")
-                        .header("Authorization", employeeToken).contentType("application/json")
+                        .header("Authorization", employeeToken)
+                        .contentType("application/json")
                         .content("{\"content\":\"Public status update request\"}"))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/tickets/" + aliceOpenTicket.getId() + "/comments")
-                        .header("Authorization", technicianToken).contentType("application/json")
+                        .header("Authorization", technicianToken)
+                        .contentType("application/json")
                         .content("{\"content\":\"Internal troubleshooting detail\",\"internalNote\":true}"))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(get("/api/tickets/" + aliceOpenTicket.getId() + "/comments").header("Authorization", employeeToken))
+        mockMvc.perform(get("/api/tickets/" + aliceOpenTicket.getId() + "/comments")
+                        .header("Authorization", employeeToken))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Public status update request")))
-                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Internal troubleshooting detail"))));
+                .andExpect(
+                        content().string(org.hamcrest.Matchers.not(containsString("Internal troubleshooting detail"))));
 
-        mockMvc.perform(get("/api/tickets/" + aliceOpenTicket.getId() + "/comments").header("Authorization", technicianToken))
+        mockMvc.perform(get("/api/tickets/" + aliceOpenTicket.getId() + "/comments")
+                        .header("Authorization", technicianToken))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Internal troubleshooting detail")));
     }
@@ -319,14 +357,16 @@ class TicketWebSecurityIntegrationTest {
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
                                 "/api/tickets/" + aliceOpenTicket.getId() + "/status")
                         .header("Authorization", technicianToken)
-                        .param("status", "IN_PROGRESS").param("version", originalVersion.toString()))
+                        .param("status", "IN_PROGRESS")
+                        .param("version", originalVersion.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
                                 "/api/tickets/" + aliceOpenTicket.getId() + "/status")
                         .header("Authorization", technicianToken)
-                        .param("status", "RESOLVED").param("resolutionNotes", "Resolved")
+                        .param("status", "RESOLVED")
+                        .param("resolutionNotes", "Resolved")
                         .param("version", originalVersion.toString()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409));
@@ -401,9 +441,7 @@ class TicketWebSecurityIntegrationTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrlPattern("**/login"));
 
-        mockMvc.perform(get("/"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrlPattern("**/login"));
+        mockMvc.perform(get("/")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrlPattern("**/login"));
 
         mockMvc.perform(post("/tickets/new").with(csrf()))
                 .andExpect(status().is3xxRedirection())
@@ -424,11 +462,9 @@ class TicketWebSecurityIntegrationTest {
     @Test
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeCannotBrowseTicketQueueOrDetails() throws Exception {
-        mockMvc.perform(get("/tickets"))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/tickets")).andExpect(status().isForbidden());
 
-        mockMvc.perform(get("/tickets/" + aliceOpenTicket.getId()))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/tickets/" + aliceOpenTicket.getId())).andExpect(status().isForbidden());
 
         mockMvc.perform(get("/tickets/new"))
                 .andExpect(status().isOk())
@@ -439,8 +475,7 @@ class TicketWebSecurityIntegrationTest {
     @Test
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeCannotViewOtherEmployeesTicketDetail() throws Exception {
-        mockMvc.perform(get("/tickets/" + bobOpenTicket.getId()))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/tickets/" + bobOpenTicket.getId())).andExpect(status().isForbidden());
     }
 
     @Test
@@ -465,8 +500,7 @@ class TicketWebSecurityIntegrationTest {
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeNavigationPersistsAcrossTicketAndNotificationPages() throws Exception {
         for (String path : java.util.List.of(
-                "/my-tickets", "/my-tickets/" + aliceOpenTicket.getId(),
-                "/tickets/new", "/notifications")) {
+                "/my-tickets", "/my-tickets/" + aliceOpenTicket.getId(), "/tickets/new", "/notifications")) {
             mockMvc.perform(get(path))
                     .andExpect(status().isOk())
                     .andExpect(content().string(containsString("href=\"/my-tickets\"")))
@@ -500,36 +534,54 @@ class TicketWebSecurityIntegrationTest {
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeCanCommentOnlyOnOwnTicketAndCannotCreateInternalNotes() throws Exception {
         mockMvc.perform(post("/my-tickets/" + aliceOpenTicket.getId() + "/comments")
-                        .with(csrf()).param("content", "I am available after lunch.").param("internalNote", "true"))
+                        .with(csrf())
+                        .param("content", "I am available after lunch.")
+                        .param("internalNote", "true"))
                 .andExpect(status().is3xxRedirection());
         mockMvc.perform(get("/my-tickets/" + aliceOpenTicket.getId()))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("I am available after lunch.")));
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("I am available after lunch.")));
         mockMvc.perform(post("/my-tickets/" + bobOpenTicket.getId() + "/comments")
-                        .with(csrf()).param("content", "Unauthorized"))
+                        .with(csrf())
+                        .param("content", "Unauthorized"))
                 .andExpect(status().isNotFound());
-        assertEquals(1, commentRepository.findByTicketAndInternalNoteFalseOrderByCreatedAtAsc(aliceOpenTicket).size());
+        assertEquals(
+                1,
+                commentRepository
+                        .findByTicketAndInternalNoteFalseOrderByCreatedAtAsc(aliceOpenTicket)
+                        .size());
     }
 
     @Test
     @WithMockUser(username = "charlie", roles = "TECHNICIAN")
     void technicianInternalNotesAreNotShownToEmployee() throws Exception {
         mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/comments")
-                        .with(csrf()).param("content", "Check private asset inventory").param("internalNote", "true"))
+                        .with(csrf())
+                        .param("content", "Check private asset inventory")
+                        .param("internalNote", "true"))
                 .andExpect(status().is3xxRedirection());
         mockMvc.perform(get("/tickets/" + aliceOpenTicket.getId()))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("Check private asset inventory")));
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Check private asset inventory")));
         mockMvc.perform(get("/my-tickets/" + aliceOpenTicket.getId()).with(userDetails("alice", "EMPLOYEE")))
-                .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.not(containsString("Check private asset inventory"))));
+                .andExpect(status().isOk())
+                .andExpect(
+                        content().string(org.hamcrest.Matchers.not(containsString("Check private asset inventory"))));
     }
 
     @Test
     @WithMockUser(username = "charlie", roles = "TECHNICIAN")
     void technicianListsRenderPagedTicketAndAssetResults() throws Exception {
-        mockMvc.perform(get("/tickets").param("size", "1").param("sort", "priority").param("dir", "asc"))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("page 1 of")))
+        mockMvc.perform(get("/tickets")
+                        .param("size", "1")
+                        .param("sort", "priority")
+                        .param("dir", "asc"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("page 1 of")))
                 .andExpect(content().string(containsString("Next →")));
         mockMvc.perform(get("/assets").param("size", "1").param("q", "AST"))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("page 1 of 1")));
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("page 1 of 1")));
     }
 
     @Test
@@ -537,7 +589,8 @@ class TicketWebSecurityIntegrationTest {
     void technicianStatusUpdateIsVisibleInEmployeeProgress() throws Exception {
         var previousUpdatedAt = aliceOpenTicket.getUpdatedAt();
         mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/status")
-                        .with(csrf()).param("status", "IN_PROGRESS")
+                        .with(csrf())
+                        .param("status", "IN_PROGRESS")
                         .param("version", aliceOpenTicket.getVersion().toString()))
                 .andExpect(status().is3xxRedirection());
 
@@ -555,7 +608,8 @@ class TicketWebSecurityIntegrationTest {
     void technicianAssignmentRefreshesEmployeeVisibleLastUpdatedDate() throws Exception {
         var previousUpdatedAt = aliceOpenTicket.getUpdatedAt();
         mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/assign")
-                        .with(csrf()).param("technicianId", techCharlie.getId().toString())
+                        .with(csrf())
+                        .param("technicianId", techCharlie.getId().toString())
                         .param("version", aliceOpenTicket.getVersion().toString()))
                 .andExpect(status().is3xxRedirection());
 
@@ -569,8 +623,7 @@ class TicketWebSecurityIntegrationTest {
     @Test
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeCannotEditAnyTicket() throws Exception {
-        mockMvc.perform(get("/tickets/" + aliceOpenTicket.getId() + "/edit"))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/tickets/" + aliceOpenTicket.getId() + "/edit")).andExpect(status().isForbidden());
 
         mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/edit")
                         .with(csrf())
@@ -584,8 +637,7 @@ class TicketWebSecurityIntegrationTest {
     @Test
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeCannotEditOtherEmployeesTicket() throws Exception {
-        mockMvc.perform(get("/tickets/" + bobOpenTicket.getId() + "/edit"))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/tickets/" + bobOpenTicket.getId() + "/edit")).andExpect(status().isForbidden());
 
         mockMvc.perform(post("/tickets/" + bobOpenTicket.getId() + "/edit")
                         .with(csrf())
@@ -606,11 +658,9 @@ class TicketWebSecurityIntegrationTest {
     @Test
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeCannotAccessTechnicianOnlyEndpoints() throws Exception {
-        mockMvc.perform(get("/assets/new"))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/assets/new")).andExpect(status().isForbidden());
 
-        mockMvc.perform(get("/assets/" + laptopAsset.getId() + "/edit"))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/assets/" + laptopAsset.getId() + "/edit")).andExpect(status().isForbidden());
 
         mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/assign")
                         .with(csrf())
@@ -618,10 +668,13 @@ class TicketWebSecurityIntegrationTest {
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/status")
-                        .with(csrf()).param("status", "RESOLVED").param("notes", "Completed"))
+                        .with(csrf())
+                        .param("status", "RESOLVED")
+                        .param("notes", "Completed"))
                 .andExpect(status().isForbidden());
 
-        mockMvc.perform(post("/assets").with(csrf())
+        mockMvc.perform(post("/assets")
+                        .with(csrf())
                         .param("assetTag", "AST-EMPLOYEE")
                         .param("name", "Unauthorized asset")
                         .param("category", "Laptop")
@@ -675,7 +728,8 @@ class TicketWebSecurityIntegrationTest {
     @WithMockUser(username = "charlie", roles = "TECHNICIAN")
     void technicianCannotResolveOrCloseWithoutResolutionNotes() throws Exception {
         mockMvc.perform(post("/tickets/" + aliceOpenTicket.getId() + "/status")
-                        .with(csrf()).param("status", "RESOLVED")
+                        .with(csrf())
+                        .param("status", "RESOLVED")
                         .param("version", aliceOpenTicket.getVersion().toString()))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString("Resolution notes are required")));
@@ -716,9 +770,7 @@ class TicketWebSecurityIntegrationTest {
     @Test
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeIsRedirectedFromAdminDashboardToTicketCreation() throws Exception {
-        mockMvc.perform(get("/"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/tickets/new"));
+        mockMvc.perform(get("/")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/tickets/new"));
     }
 
     @Test
@@ -741,7 +793,8 @@ class TicketWebSecurityIntegrationTest {
     @Test
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeCanSubmitTicketAndReturnsToCreationFormWithSuccess() throws Exception {
-        mockMvc.perform(post("/tickets").with(csrf())
+        mockMvc.perform(post("/tickets")
+                        .with(csrf())
                         .param("title", "Employee submitted ticket")
                         .param("description", "VPN fails when connecting from home")
                         .param("category", "NETWORK")
@@ -753,7 +806,8 @@ class TicketWebSecurityIntegrationTest {
 
         Ticket created = ticketRepository.findAll().stream()
                 .filter(ticket -> "Employee submitted ticket".equals(ticket.getTitle()))
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseThrow();
         assertEquals(employeeAlice.getId(), created.getReporter().getId());
         assertEquals(TicketStatus.OPEN, created.getStatus());
         assertEquals(Priority.HIGH, created.getPriority());
@@ -766,7 +820,8 @@ class TicketWebSecurityIntegrationTest {
                 .andExpect(content().string(containsString("/my-tickets/" + created.getId())));
     }
 
-    private org.springframework.test.web.servlet.request.RequestPostProcessor userDetails(String username, String role) {
+    private org.springframework.test.web.servlet.request.RequestPostProcessor userDetails(
+            String username, String role) {
         return org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(username)
                 .roles(role);
     }
@@ -774,7 +829,8 @@ class TicketWebSecurityIntegrationTest {
     @Test
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeTicketCreationValidatesRequiredFields() throws Exception {
-        mockMvc.perform(post("/tickets").with(csrf())
+        mockMvc.perform(post("/tickets")
+                        .with(csrf())
                         .param("title", "Missing category")
                         .param("description", "Description")
                         .param("priority", "LOW"))
@@ -793,7 +849,8 @@ class TicketWebSecurityIntegrationTest {
     @Test
     @WithMockUser(username = "charlie", roles = "TECHNICIAN")
     void technicianCanCreateAsset() throws Exception {
-        mockMvc.perform(post("/assets").with(csrf())
+        mockMvc.perform(post("/assets")
+                        .with(csrf())
                         .param("assetTag", "AST-CREATED-02")
                         .param("name", "MacBook Pro 14")
                         .param("category", "Laptop")
@@ -804,7 +861,8 @@ class TicketWebSecurityIntegrationTest {
 
         Asset created = assetRepository.findAll().stream()
                 .filter(asset -> "AST-CREATED-02".equals(asset.getAssetTag()))
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseThrow();
         assertEquals("MacBook Pro 14", created.getName());
         assertEquals(AssetStatus.AVAILABLE, created.getStatus());
     }
@@ -812,8 +870,7 @@ class TicketWebSecurityIntegrationTest {
     @Test
     @WithMockUser(username = "alice", roles = "EMPLOYEE")
     void employeeCannotViewAssetsInventory() throws Exception {
-        mockMvc.perform(get("/assets"))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/assets")).andExpect(status().isForbidden());
     }
 
     @Test
@@ -831,9 +888,7 @@ class TicketWebSecurityIntegrationTest {
     @Test
     @WithMockUser(username = "charlie", roles = "TECHNICIAN")
     void technicianCanFilterAssetsByCategoryAndStatus() throws Exception {
-        mockMvc.perform(get("/assets")
-                        .param("status", "AVAILABLE")
-                        .param("category", "Laptop"))
+        mockMvc.perform(get("/assets").param("status", "AVAILABLE").param("category", "Laptop"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Asset inventory")));
     }

@@ -2,8 +2,8 @@ package com.example.helpdesk.api;
 
 import com.example.helpdesk.api.dto.AttachmentDto;
 import com.example.helpdesk.api.dto.PageResponse;
-import com.example.helpdesk.api.dto.TicketDto;
 import com.example.helpdesk.api.dto.TicketCommentDto;
+import com.example.helpdesk.api.dto.TicketDto;
 import com.example.helpdesk.dto.TicketEditForm;
 import com.example.helpdesk.model.Ticket;
 import com.example.helpdesk.model.TicketAttachment;
@@ -16,6 +16,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -32,19 +37,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-import java.time.ZoneOffset;
-import java.util.stream.Collectors;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
-
 @RestController
 @RequestMapping("/api/tickets")
 @Tag(name = "Tickets", description = "Ticket management API endpoints")
 public class TicketApiController {
 
     private static final int MAX_PAGE_SIZE = 100;
-    private static final java.util.Set<String> SORT_FIELDS = java.util.Set.of("id", "title", "status", "priority", "createdAt", "updatedAt");
+    private static final java.util.Set<String> SORT_FIELDS =
+            java.util.Set.of("id", "title", "status", "priority", "createdAt", "updatedAt");
 
     private final TicketService ticketService;
     private final TicketAttachmentService attachments;
@@ -66,17 +66,15 @@ public class TicketApiController {
         Pageable pageable = apiPageable(page, size, sortBy, sortDir);
         Page<Ticket> tickets = ticketService.getAllTicketsPaginated(pageable);
 
-        List<TicketDto> ticketDtos = tickets.getContent().stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
+        List<TicketDto> ticketDtos =
+                tickets.getContent().stream().map(this::convertToDto).collect(Collectors.toList());
 
         PageResponse<TicketDto> response = new PageResponse<>(
                 ticketDtos,
                 tickets.getNumber(),
                 tickets.getTotalPages(),
                 tickets.getTotalElements(),
-                tickets.getSize()
-        );
+                tickets.getSize());
 
         return ResponseEntity.ok(response);
     }
@@ -91,7 +89,8 @@ public class TicketApiController {
 
     @PostMapping
     @Operation(summary = "Create a new ticket")
-    public ResponseEntity<TicketDto> createTicket(@Valid @RequestBody TicketDto ticketDto, Authentication authentication) {
+    public ResponseEntity<TicketDto> createTicket(
+            @Valid @RequestBody TicketDto ticketDto, Authentication authentication) {
         String username = authentication.getName();
         Ticket ticket = convertToEntity(ticketDto);
         Ticket created = ticketService.createTicket(ticket, username);
@@ -101,10 +100,11 @@ public class TicketApiController {
     @PutMapping("/{id}")
     @Operation(summary = "Update an existing ticket")
     @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<TicketDto> updateTicket(@PathVariable Long id, @Valid @RequestBody TicketDto ticketDto,
-                                                  Authentication authentication) {
+    public ResponseEntity<TicketDto> updateTicket(
+            @PathVariable Long id, @Valid @RequestBody TicketDto ticketDto, Authentication authentication) {
         if (ticketDto.getVersion() == null) {
-            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.PRECONDITION_REQUIRED,
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.PRECONDITION_REQUIRED,
                     "Ticket version is required. Reload the ticket and include its version when updating.");
         }
         TicketEditForm form = new TicketEditForm();
@@ -140,9 +140,11 @@ public class TicketApiController {
     @PatchMapping("/{id}/assign")
     @Operation(summary = "Assign ticket to technician")
     @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<TicketDto> assignTicket(@PathVariable Long id, @RequestParam Long technicianId,
-                                                   @RequestParam Long version,
-                                                   Authentication authentication) {
+    public ResponseEntity<TicketDto> assignTicket(
+            @PathVariable Long id,
+            @RequestParam Long technicianId,
+            @RequestParam Long version,
+            Authentication authentication) {
         ticketService.assign(id, technicianId, authentication.getName(), version);
         Ticket updated = ticketService.getTicketById(id);
         return ResponseEntity.ok(convertToDto(updated));
@@ -153,15 +155,16 @@ public class TicketApiController {
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<List<AttachmentDto>> listAttachments(@PathVariable Long id) {
         ticketService.getTicketById(id);
-        return ResponseEntity.ok(attachments.listForTicket(id).stream().map(this::toAttachmentDto).toList());
+        return ResponseEntity.ok(attachments.listForTicket(id).stream()
+                .map(this::toAttachmentDto)
+                .toList());
     }
 
     @PostMapping("/{id}/attachments")
     @Operation(summary = "Upload a ticket attachment (5 MB max, document/image/archive types)")
     @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<AttachmentDto> uploadAttachment(@PathVariable Long id,
-                                                          @RequestParam("file") MultipartFile file,
-                                                          Authentication authentication) {
+    public ResponseEntity<AttachmentDto> uploadAttachment(
+            @PathVariable Long id, @RequestParam("file") MultipartFile file, Authentication authentication) {
         TicketAttachment saved = attachments.store(id, file, authentication.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(toAttachmentDto(TicketAttachmentMetadata.from(saved)));
     }
@@ -169,11 +172,13 @@ public class TicketApiController {
     @GetMapping("/{id}/attachments/{attachmentId}/download")
     @Operation(summary = "Download a ticket attachment")
     @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<Resource> downloadAttachment(@PathVariable Long id, @PathVariable Long attachmentId,
-                                                       Authentication authentication) {
+    public ResponseEntity<Resource> downloadAttachment(
+            @PathVariable Long id, @PathVariable Long attachmentId, Authentication authentication) {
         TicketAttachment attachment = attachments.readableContent(id, attachmentId, authentication.getName());
         String contentDisposition = ContentDisposition.builder("attachment")
-                .filename(attachment.getFilename()).build().toString();
+                .filename(attachment.getFilename())
+                .build()
+                .toString();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
                 .contentType(MediaType.parseMediaType(attachment.getContentType()))
@@ -184,17 +189,22 @@ public class TicketApiController {
     @GetMapping("/my/{id}/attachments")
     @Operation(summary = "List attachments on one of the current user's tickets")
     @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<List<AttachmentDto>> listMyAttachments(@PathVariable Long id,
-                                                                 Authentication authentication) {
+    public ResponseEntity<List<AttachmentDto>> listMyAttachments(@PathVariable Long id, Authentication authentication) {
         ticketService.getMyTicket(id, authentication.getName());
-        return ResponseEntity.ok(attachments.listForTicket(id).stream().map(this::toAttachmentDto).toList());
+        return ResponseEntity.ok(attachments.listForTicket(id).stream()
+                .map(this::toAttachmentDto)
+                .toList());
     }
 
     private AttachmentDto toAttachmentDto(TicketAttachmentMetadata attachment) {
         return new AttachmentDto(
-                attachment.id(), attachment.ticketId(), attachment.filename(),
-                attachment.contentType(), attachment.sizeBytes(),
-                attachment.uploadedByUsername(), attachment.uploadedAt().atOffset(ZoneOffset.UTC));
+                attachment.id(),
+                attachment.ticketId(),
+                attachment.filename(),
+                attachment.contentType(),
+                attachment.sizeBytes(),
+                attachment.uploadedByUsername(),
+                attachment.uploadedAt().atOffset(ZoneOffset.UTC));
     }
 
     @GetMapping("/my/{id}")
@@ -215,15 +225,16 @@ public class TicketApiController {
 
     @PostMapping("/{id}/comments")
     @Operation(summary = "Add a public comment or technician-only internal note")
-    public ResponseEntity<TicketCommentDto> addComment(@PathVariable Long id,
-                                                        @Valid @RequestBody CommentRequest request,
-                                                        Authentication authentication) {
+    public ResponseEntity<TicketCommentDto> addComment(
+            @PathVariable Long id, @Valid @RequestBody CommentRequest request, Authentication authentication) {
         TicketComment comment;
         if (isTechnician(authentication)) {
-            comment = ticketService.addTechnicianComment(id, authentication.getName(), request.content(), request.internalNote());
+            comment = ticketService.addTechnicianComment(
+                    id, authentication.getName(), request.content(), request.internalNote());
         } else {
             if (request.internalNote()) {
-                throw new org.springframework.security.access.AccessDeniedException("Employees cannot add internal notes");
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "Employees cannot add internal notes");
             }
             comment = ticketService.addEmployeeComment(id, authentication.getName(), request.content());
         }
@@ -235,8 +246,12 @@ public class TicketApiController {
     }
 
     private TicketCommentDto toCommentDto(TicketComment comment) {
-        return new TicketCommentDto(comment.getId(), comment.getAuthor().getFullName(), comment.getContent(),
-                comment.isInternalNote(), comment.getCreatedAt().atOffset(ZoneOffset.UTC));
+        return new TicketCommentDto(
+                comment.getId(),
+                comment.getAuthor().getFullName(),
+                comment.getContent(),
+                comment.isInternalNote(),
+                comment.getCreatedAt().atOffset(ZoneOffset.UTC));
     }
 
     public record CommentRequest(@NotBlank @Size(max = 5000) String content, boolean internalNote) {}
@@ -253,28 +268,31 @@ public class TicketApiController {
         Pageable pageable = apiPageable(page, size, "updatedAt", "desc");
         Page<Ticket> tickets = ticketService.getTicketsByReporterPaginated(username, pageable);
 
-        List<TicketDto> ticketDtos = tickets.getContent().stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
+        List<TicketDto> ticketDtos =
+                tickets.getContent().stream().map(this::convertToDto).collect(Collectors.toList());
 
         PageResponse<TicketDto> response = new PageResponse<>(
                 ticketDtos,
                 tickets.getNumber(),
                 tickets.getTotalPages(),
                 tickets.getTotalElements(),
-                tickets.getSize()
-        );
+                tickets.getSize());
 
         return ResponseEntity.ok(response);
     }
 
     private Pageable apiPageable(int page, int size, String sortBy, String sortDir) {
-        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE || !SORT_FIELDS.contains(sortBy)
+        if (page < 0
+                || size < 1
+                || size > MAX_PAGE_SIZE
+                || !SORT_FIELDS.contains(sortBy)
                 || !("asc".equalsIgnoreCase(sortDir) || "desc".equalsIgnoreCase(sortDir))) {
-            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid pagination or sorting parameters");
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Invalid pagination or sorting parameters");
         }
-        Sort sort = "asc".equalsIgnoreCase(sortDir) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Sort sort = "asc".equalsIgnoreCase(sortDir)
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
         return PageRequest.of(page, size, sort);
     }
 
@@ -290,7 +308,8 @@ public class TicketApiController {
         dto.setCreatedAt(ticket.getCreatedAt().atOffset(ZoneOffset.UTC));
         dto.setUpdatedAt(ticket.getUpdatedAt().atOffset(ZoneOffset.UTC));
         dto.setVersion(ticket.getVersion());
-        dto.setSlaDueAt(ticket.getSlaDueAt() == null ? null : ticket.getSlaDueAt().atOffset(ZoneOffset.UTC));
+        dto.setSlaDueAt(
+                ticket.getSlaDueAt() == null ? null : ticket.getSlaDueAt().atOffset(ZoneOffset.UTC));
         dto.setSlaOverdue(ticket.isSlaOverdue());
         if (ticket.getReporter() != null) {
             dto.setReporterName(ticket.getReporter().getFullName());

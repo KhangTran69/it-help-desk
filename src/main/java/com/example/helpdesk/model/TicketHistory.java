@@ -46,7 +46,8 @@ public class TicketHistory {
         this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    public TicketHistory(Ticket t, User a, String x, String d, String fieldChanged, String previousValue, String newValue) {
+    public TicketHistory(
+            Ticket t, User a, String x, String d, String fieldChanged, String previousValue, String newValue) {
         this.ticket = t;
         this.actor = a;
         this.action = x;
@@ -57,13 +58,39 @@ public class TicketHistory {
         this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    public Long getId() { return id; }
-    public Ticket getTicket() { return ticket; }
-    public User getActor() { return actor; }
-    public String getAction() { return action; }
-    public String getDetails() { return details; }
-    public String getFieldChanged() { return fieldChanged; }
-    public String getPreviousValue() { return previousValue; }
-    public String getNewValue() { return newValue; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public Ticket getTicket() {
+        return ticket;
+    }
+
+    public User getActor() {
+        return actor;
+    }
+
+    public String getAction() {
+        return action;
+    }
+
+    public String getDetails() {
+        return details;
+    }
+
+    public String getFieldChanged() {
+        return fieldChanged;
+    }
+
+    public String getPreviousValue() {
+        return previousValue;
+    }
+
+    public String getNewValue() {
+        return newValue;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

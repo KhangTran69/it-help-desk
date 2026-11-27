@@ -5,8 +5,8 @@ import com.example.helpdesk.model.AssetStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import org.springframework.format.annotation.DateTimeFormat;
 import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 
 public class AssetForm {
     private Long id;
@@ -26,6 +26,7 @@ public class AssetForm {
 
     @Size(max = 100, message = "Manufacturer cannot exceed 100 characters")
     private String manufacturer;
+
     @Size(max = 100, message = "Serial number cannot exceed 100 characters")
     private String serialNumber;
 
@@ -51,7 +52,8 @@ public class AssetForm {
         f.setManufacturer(asset.getManufacturer());
         f.setSerialNumber(asset.getSerialNumber());
         f.setStatus(asset.getStatus());
-        f.setAssignedUserId(asset.getAssignedUser() != null ? asset.getAssignedUser().getId() : null);
+        f.setAssignedUserId(
+                asset.getAssignedUser() != null ? asset.getAssignedUser().getId() : null);
         f.setPurchaseDate(asset.getPurchaseDate());
         f.setNotes(asset.getNotes());
         return f;
@@ -68,35 +70,91 @@ public class AssetForm {
         asset.setNotes(this.notes);
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getAssetTag() { return assetTag; }
-    public void setAssetTag(String assetTag) { this.assetTag = assetTag; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public Long getVersion() {
+        return version;
+    }
 
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
+    public void setVersion(Long version) {
+        this.version = version;
+    }
 
-    public String getManufacturer() { return manufacturer; }
-    public void setManufacturer(String manufacturer) { this.manufacturer = manufacturer; }
+    public String getAssetTag() {
+        return assetTag;
+    }
 
-    public String getSerialNumber() { return serialNumber; }
-    public void setSerialNumber(String serialNumber) { this.serialNumber = serialNumber; }
+    public void setAssetTag(String assetTag) {
+        this.assetTag = assetTag;
+    }
 
-    public AssetStatus getStatus() { return status; }
-    public void setStatus(AssetStatus status) { this.status = status; }
+    public String getName() {
+        return name;
+    }
 
-    public Long getAssignedUserId() { return assignedUserId; }
-    public void setAssignedUserId(Long assignedUserId) { this.assignedUserId = assignedUserId; }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public LocalDate getPurchaseDate() { return purchaseDate; }
-    public void setPurchaseDate(LocalDate purchaseDate) { this.purchaseDate = purchaseDate; }
+    public String getCategory() {
+        return category;
+    }
 
-    public String getNotes() { return notes; }
-    public void setNotes(String notes) { this.notes = notes; }
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getManufacturer() {
+        return manufacturer;
+    }
+
+    public void setManufacturer(String manufacturer) {
+        this.manufacturer = manufacturer;
+    }
+
+    public String getSerialNumber() {
+        return serialNumber;
+    }
+
+    public void setSerialNumber(String serialNumber) {
+        this.serialNumber = serialNumber;
+    }
+
+    public AssetStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(AssetStatus status) {
+        this.status = status;
+    }
+
+    public Long getAssignedUserId() {
+        return assignedUserId;
+    }
+
+    public void setAssignedUserId(Long assignedUserId) {
+        this.assignedUserId = assignedUserId;
+    }
+
+    public LocalDate getPurchaseDate() {
+        return purchaseDate;
+    }
+
+    public void setPurchaseDate(LocalDate purchaseDate) {
+        this.purchaseDate = purchaseDate;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
 }

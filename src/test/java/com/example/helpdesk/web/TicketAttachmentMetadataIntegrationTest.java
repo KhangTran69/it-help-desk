@@ -1,5 +1,14 @@
 package com.example.helpdesk.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.example.helpdesk.model.Category;
 import com.example.helpdesk.model.Priority;
 import com.example.helpdesk.model.Role;
@@ -12,6 +21,9 @@ import com.example.helpdesk.repo.TicketRepository;
 import com.example.helpdesk.repo.UserRepository;
 import com.example.helpdesk.security.JwtUtil;
 import jakarta.persistence.EntityManager;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
 import org.junit.jupiter.api.Test;
@@ -27,34 +39,35 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-@SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:helpdesk_attachment_metadata;MODE=MySQL;DB_CLOSE_DELAY=-1",
-        "spring.jpa.open-in-view=false"
-})
+@SpringBootTest(
+        properties = {
+            "spring.datasource.url=jdbc:h2:mem:helpdesk_attachment_metadata;MODE=MySQL;DB_CLOSE_DELAY=-1",
+            "spring.jpa.open-in-view=false"
+        })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
 class TicketAttachmentMetadataIntegrationTest {
-    @Autowired private MockMvc mockMvc;
-    @Autowired private UserRepository users;
-    @Autowired private TicketRepository tickets;
-    @Autowired private TicketAttachmentRepository attachments;
-    @Autowired private EntityManager entityManager;
-    @Autowired private JwtUtil jwt;
-    @Autowired private AttachmentSelects attachmentSelects;
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private UserRepository users;
+
+    @Autowired
+    private TicketRepository tickets;
+
+    @Autowired
+    private TicketAttachmentRepository attachments;
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Autowired
+    private JwtUtil jwt;
+
+    @Autowired
+    private AttachmentSelects attachmentSelects;
 
     @Test
     void listingAttachmentsReadsMetadataWithoutSelectingContent() throws Exception {
@@ -71,8 +84,8 @@ class TicketAttachmentMetadataIntegrationTest {
 
         byte[] firstFileBytes = {1, 2, 3};
         saveAttachment(ticket, technician, "later.pdf", LocalDateTime.of(2026, 1, 2, 8, 0), new byte[] {4});
-        TicketAttachment first = saveAttachment(ticket, reporter, "earlier.pdf",
-                LocalDateTime.of(2026, 1, 1, 8, 0), firstFileBytes);
+        TicketAttachment first =
+                saveAttachment(ticket, reporter, "earlier.pdf", LocalDateTime.of(2026, 1, 1, 8, 0), firstFileBytes);
         entityManager.flush();
         entityManager.clear();
         attachmentSelects.statements.clear();
@@ -91,15 +104,17 @@ class TicketAttachmentMetadataIntegrationTest {
                 .andExpect(content().string(containsString(reporterPath + downloadSuffix)))
                 .andExpect(content().string(containsString("earlier.pdf")));
 
-        assertThat(attachmentSelects.statements).hasSize(4).allSatisfy(sql ->
-                assertThat(sql).doesNotContainPattern("\\.content\\b"));
+        assertThat(attachmentSelects.statements).hasSize(4).allSatisfy(sql -> assertThat(sql)
+                .doesNotContainPattern("\\.content\\b"));
 
-        mockMvc.perform(get(reporterPath + downloadSuffix).with(user(reporter.getUsername()).roles("EMPLOYEE")))
+        mockMvc.perform(get(reporterPath + downloadSuffix)
+                        .with(user(reporter.getUsername()).roles("EMPLOYEE")))
                 .andExpect(status().isOk())
                 .andExpect(content().bytes(firstFileBytes));
 
         MockMultipartFile upload = new MockMultipartFile("file", "upload.pdf", "application/pdf", firstFileBytes);
-        mockMvc.perform(multipart("/api/tickets/{id}/attachments", ticket.getId()).file(upload)
+        mockMvc.perform(multipart("/api/tickets/{id}/attachments", ticket.getId())
+                        .file(upload)
                         .header("Authorization", "Bearer " + jwt.generateToken(technician.getUsername())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.filename").value("upload.pdf"))
@@ -107,15 +122,17 @@ class TicketAttachmentMetadataIntegrationTest {
                 .andExpect(jsonPath("$.content").doesNotExist());
     }
 
-    private TicketAttachment saveAttachment(Ticket ticket, User uploader, String filename,
-                                            LocalDateTime uploadedAt, byte[] body) {
-        TicketAttachment attachment = new TicketAttachment(ticket, filename, "application/pdf", body.length, uploader, body);
+    private TicketAttachment saveAttachment(
+            Ticket ticket, User uploader, String filename, LocalDateTime uploadedAt, byte[] body) {
+        TicketAttachment attachment =
+                new TicketAttachment(ticket, filename, "application/pdf", body.length, uploader, body);
         ReflectionTestUtils.setField(attachment, "uploadedAt", uploadedAt);
         return attachments.save(attachment);
     }
 
     private void checkAttachmentList(String url, Ticket ticket, User viewer, TicketAttachment first) throws Exception {
-        mockMvc.perform(get(url, ticket.getId()).header("Authorization", "Bearer " + jwt.generateToken(viewer.getUsername())))
+        mockMvc.perform(get(url, ticket.getId())
+                        .header("Authorization", "Bearer " + jwt.generateToken(viewer.getUsername())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].id").value(first.getId().intValue()))

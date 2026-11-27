@@ -1,8 +1,8 @@
 package com.example.helpdesk.config;
 
-import com.example.helpdesk.model.Role;
 import com.example.helpdesk.model.Category;
 import com.example.helpdesk.model.Priority;
+import com.example.helpdesk.model.Role;
 import com.example.helpdesk.model.Ticket;
 import com.example.helpdesk.model.TicketStatus;
 import com.example.helpdesk.model.User;
@@ -19,8 +19,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Profile("demo & !prod")
 public class DataInitializer {
     @Bean
-    CommandLineRunner seedDemoAccounts(UserRepository users, TicketRepository tickets,
-                                       PasswordEncoder encoder, SlaPolicy slaPolicy) {
+    CommandLineRunner seedDemoAccounts(
+            UserRepository users, TicketRepository tickets, PasswordEncoder encoder, SlaPolicy slaPolicy) {
         return args -> {
             if (users.findByUsername("employee").isEmpty()) {
                 users.save(new User("employee", encoder.encode("employee123"), "Demo Employee", Role.EMPLOYEE));
