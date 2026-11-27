@@ -28,6 +28,15 @@
     <article class="comment-item" th:each="comment : ${comments}" th:classappend="${comment.internalNote ? ' internal-comment' : ''}">
       <div class="comment-meta"><strong th:text="${comment.author.fullName}">Author</strong><span th:if="${comment.internalNote}" class="badge">Internal note · technicians only</span><time th:text="${@phTime.dateTime(comment.createdAt)}">Date</time></div>
       <p class="pre-wrap" th:text="${comment.content}">Comment text</p>
+      <small class="muted" th:if="${comment.lastEditedAt != null}" th:text="'edited ' + ${@phTime.dateTime(comment.lastEditedAt)}">edited</small>
+      <details th:if="${comment.editableBy(currentUser)}" class="comment-edit">
+        <summary>Edit (within 15 minutes of posting)</summary>
+        <form method="post" th:action="@{'/tickets/' + ${ticket.id} + '/comments/' + ${comment.id} + '/edit'}" class="stack-form">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+          <textarea name="content" rows="3" maxlength="5000" required th:text="${comment.content}"></textarea>
+          <button class="button secondary" type="submit">Save edit</button>
+        </form>
+      </details>
     </article>
     <p class="empty" th:if="${#lists.isEmpty(comments)}">No comments yet.</p>
     <form method="post" th:action="@{'/tickets/' + ${ticket.id} + '/comments'}" class="stack-form comment-form"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">

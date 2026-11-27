@@ -33,6 +33,11 @@ public class DataInitializer {
                 technician.setEmail("technician@demo.local");
                 users.save(technician);
             }
+            if (users.findByUsername("admin").isEmpty()) {
+                User admin = new User("admin", encoder.encode("admin123456"), "Demo Administrator", Role.ADMIN);
+                admin.setEmail("admin@demo.local");
+                users.save(admin);
+            }
             if (!tickets.existsByTitle("Demo: Laptop cannot connect to Wi-Fi")) {
                 Ticket ticket = new Ticket();
                 ticket.setTitle("Demo: Laptop cannot connect to Wi-Fi");

@@ -28,6 +28,9 @@ public class TicketComment {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now(ZoneOffset.UTC);
 
+    @Column(name = "last_edited_at")
+    private LocalDateTime lastEditedAt;
+
     protected TicketComment() {}
 
     public TicketComment(Ticket ticket, User author, String content, boolean internalNote) {
@@ -60,5 +63,29 @@ public class TicketComment {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public LocalDateTime getLastEditedAt() {
+        return lastEditedAt;
+    }
+
+    public void setContent(String value) {
+        this.content = value;
+    }
+
+    public void setCreatedAtForTesting(LocalDateTime when) {
+        this.createdAt = when;
+    }
+
+    public void markEdited(LocalDateTime when) {
+        this.lastEditedAt = when;
+    }
+
+    /** Authors may edit their comment for fifteen minutes after posting. */
+    public boolean editableBy(User user) {
+        if (user == null || author == null || !user.getUsername().equals(author.getUsername())) {
+            return false;
+        }
+        return LocalDateTime.now(ZoneOffset.UTC).isBefore(createdAt.plusMinutes(15));
     }
 }

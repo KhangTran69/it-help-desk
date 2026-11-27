@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import java.util.Set;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -198,6 +199,30 @@ public class TicketPageController {
                 .body(body);
     }
 
+    @PostMapping("/tickets/{id}/comments/{commentId}/edit")
+    String technicianEditComment(
+            @PathVariable Long id,
+            @PathVariable Long commentId,
+            @RequestParam String content,
+            Authentication authentication,
+            RedirectAttributes redirect) {
+        tickets.editOwnComment(id, commentId, authentication.getName(), content);
+        redirect.addFlashAttribute("success", "Comment updated.");
+        return "redirect:/tickets/" + id;
+    }
+
+    @PostMapping("/my-tickets/{id}/comments/{commentId}/edit")
+    String employeeEditComment(
+            @PathVariable Long id,
+            @PathVariable Long commentId,
+            @RequestParam String content,
+            Authentication authentication,
+            RedirectAttributes redirect) {
+        tickets.editOwnComment(id, commentId, authentication.getName(), content);
+        redirect.addFlashAttribute("success", "Comment updated.");
+        return "redirect:/my-tickets/" + id;
+    }
+
     @PostMapping("/tickets/{id}/comments")
     String technicianComment(
             @PathVariable Long id,
@@ -294,6 +319,54 @@ public class TicketPageController {
         return authentication != null
                 && authentication.getAuthorities().stream()
                         .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()));
+    }
+
+    @GetMapping("/tickets/export")
+    ResponseEntity<String> exportCsv(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) TicketStatus status,
+            @RequestParam(required = false) String statusGroup,
+            @RequestParam(required = false) Priority priority,
+            @RequestParam(required = false) Category category,
+            @RequestParam(required = false) Long technicianId,
+            @RequestParam(required = false) Boolean unassigned,
+            @RequestParam(defaultValue = "false") boolean overdue) {
+        boolean resolvedClosed = "resolved-closed".equals(statusGroup);
+        if (statusGroup != null && !resolvedClosed) throw new IllegalArgumentException("Unknown ticket status group");
+        Page<Ticket> page = tickets.searchPage(
+                status, priority, category, technicianId, unassigned, q, resolvedClosed, overdue, Pageable.unpaged());
+        StringBuilder csv = new StringBuilder(
+                "id,title,status,priority,category,reporter,technician,created_at,updated_at,sla_due_at,overdue\n");
+        for (Ticket ticket : page.getContent()) {
+            csv.append(ticket.getId()).append(',')
+                    .append(csvField(ticket.getTitle())).append(',')
+                    .append(ticket.getStatus()).append(',')
+                    .append(ticket.getPriority()).append(',')
+                    .append(ticket.getCategory()).append(',')
+                    .append(csvField(ticket.getReporter() != null ? ticket.getReporter().getFullName() : ""))
+                    .append(',')
+                    .append(csvField(
+                            ticket.getTechnician() != null ? ticket.getTechnician().getFullName() : ""))
+                    .append(',')
+                    .append(ticket.getCreatedAt()).append(',')
+                    .append(ticket.getUpdatedAt()).append(',')
+                    .append(ticket.getSlaDueAt() == null ? "" : ticket.getSlaDueAt())
+                    .append(',')
+                    .append(ticket.isSlaOverdue())
+                    .append('\n');
+        }
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=tickets.csv")
+                .contentType(org.springframework.http.MediaType.parseMediaType("text/csv"))
+                .body(csv.toString());
+    }
+
+    private String csvField(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return '"' + value.replace("\"", "\"\"") + '"';
+        }
+        return value;
     }
 
     private Pageable pageable(int page, int size, String sort, String direction, Set<String> allowed, String fallback) {
