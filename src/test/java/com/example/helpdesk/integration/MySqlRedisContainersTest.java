@@ -97,7 +97,8 @@ class MySqlRedisContainersTest {
 
         assertEquals(openBefore + 1, ticketService.count(TicketStatus.OPEN));
         assertTrue(Boolean.TRUE.equals(redis.hasKey("ticketCounts::OPEN")));
-        ticketService.updateStatus(ticket.getId(), TicketStatus.IN_PROGRESS, null, technician.getUsername());
+        ticketService.updateStatus(
+                ticket.getId(), TicketStatus.IN_PROGRESS, null, technician.getUsername(), ticket.getVersion());
         assertEquals(openBefore, ticketService.count(TicketStatus.OPEN));
         assertEquals(inProgressBefore + 1, ticketService.count(TicketStatus.IN_PROGRESS));
     }
@@ -120,49 +121,26 @@ class MySqlRedisContainersTest {
             tickets.save(ticket);
         }
 
-        var combined = tickets.pageTickets(
-                employee,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                true,
-                false,
-                java.time.LocalDateTime.now(java.time.ZoneOffset.UTC),
+        var now = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC);
+        var combined = tickets.findAll(
+                com.example.helpdesk.repo.TicketSpecifications.withFilters(
+                        employee, null, null, null, null, null, null, true, false, now),
                 PageRequest.of(0, 10));
         assertEquals(2, combined.getTotalElements());
         assertTrue(combined.getContent().stream()
                 .allMatch(ticket ->
                         ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CLOSED));
 
-        var resolvedOnly = tickets.pageTickets(
-                employee,
-                TicketStatus.RESOLVED,
-                null,
-                null,
-                null,
-                null,
-                null,
-                true,
-                false,
-                java.time.LocalDateTime.now(java.time.ZoneOffset.UTC),
+        var resolvedOnly = tickets.findAll(
+                com.example.helpdesk.repo.TicketSpecifications.withFilters(
+                        employee, TicketStatus.RESOLVED, null, null, null, null, null, true, false, now),
                 PageRequest.of(0, 10));
         assertEquals(1, resolvedOnly.getTotalElements());
         assertEquals(TicketStatus.RESOLVED, resolvedOnly.getContent().get(0).getStatus());
 
-        var incompatibleStatus = tickets.pageTickets(
-                employee,
-                TicketStatus.OPEN,
-                null,
-                null,
-                null,
-                null,
-                null,
-                true,
-                false,
-                java.time.LocalDateTime.now(java.time.ZoneOffset.UTC),
+        var incompatibleStatus = tickets.findAll(
+                com.example.helpdesk.repo.TicketSpecifications.withFilters(
+                        employee, TicketStatus.OPEN, null, null, null, null, null, true, false, now),
                 PageRequest.of(0, 10));
         assertEquals(0, incompatibleStatus.getTotalElements());
     }

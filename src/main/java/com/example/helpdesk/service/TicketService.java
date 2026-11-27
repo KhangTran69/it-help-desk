@@ -9,11 +9,16 @@ import com.example.helpdesk.model.*;
 import com.example.helpdesk.repo.TicketCommentRepository;
 import com.example.helpdesk.repo.TicketHistoryRepository;
 import com.example.helpdesk.repo.TicketRepository;
+import com.example.helpdesk.repo.TicketSpecifications;
 import com.example.helpdesk.repo.UserRepository;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -26,6 +31,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TicketService {
+
+    /**
+     * Valid status transitions. Reopening is always allowed; jumping straight to CLOSED
+     * (skipping RESOLVED, which requires notes) is not.
+     */
+    private static final Map<TicketStatus, Set<TicketStatus>> ALLOWED_TRANSITIONS = Map.of(
+            TicketStatus.OPEN,
+            EnumSet.of(TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED),
+            TicketStatus.IN_PROGRESS,
+            EnumSet.of(TicketStatus.OPEN, TicketStatus.RESOLVED),
+            TicketStatus.RESOLVED,
+            EnumSet.of(TicketStatus.OPEN, TicketStatus.CLOSED),
+            TicketStatus.CLOSED,
+            EnumSet.of(TicketStatus.OPEN));
+
     private final TicketRepository tickets;
     private final UserRepository users;
     private final TicketHistoryRepository history;
@@ -52,55 +72,10 @@ public class TicketService {
         this.slaPolicy = slaPolicy;
     }
 
-    public TicketService(TicketRepository tickets, UserRepository users, TicketHistoryRepository history) {
-        this(
-                tickets,
-                users,
-                history,
-                null,
-                null,
-                null,
-                new SlaPolicy(java.time.Clock.systemUTC(), 1209600, 259200, 86400));
-    }
-
-    public TicketService(
-            TicketRepository tickets,
-            UserRepository users,
-            TicketHistoryRepository history,
-            TicketCommentRepository comments) {
-        this(
-                tickets,
-                users,
-                history,
-                comments,
-                null,
-                null,
-                new SlaPolicy(java.time.Clock.systemUTC(), 1209600, 259200, 86400));
-    }
-
-    @Transactional(readOnly = true)
-    public Page<Ticket> searchPage(
-            TicketStatus status,
-            Priority priority,
-            Category category,
-            Long technicianId,
-            Boolean unassigned,
-            String query,
-            Pageable pageable) {
-        return searchPage(status, priority, category, technicianId, unassigned, query, false, false, pageable);
-    }
-
-    @Transactional(readOnly = true)
-    public Page<Ticket> searchPage(
-            TicketStatus status,
-            Priority priority,
-            Category category,
-            Long technicianId,
-            Boolean unassigned,
-            String query,
-            boolean resolvedClosed,
-            Pageable pageable) {
-        return searchPage(status, priority, category, technicianId, unassigned, query, resolvedClosed, false, pageable);
+    public Set<TicketStatus> allowedNextStatuses(TicketStatus current) {
+        if (current == null) return Set.of();
+        return Collections.unmodifiableSet(
+                ALLOWED_TRANSITIONS.getOrDefault(current, EnumSet.noneOf(TicketStatus.class)));
     }
 
     @Transactional(readOnly = true)
@@ -114,54 +89,32 @@ public class TicketService {
             boolean resolvedClosed,
             boolean overdue,
             Pageable pageable) {
-        User technician = technicianId == null
-                ? null
-                : users.findById(technicianId).orElseThrow(() -> new ResourceNotFoundException("Technician not found"));
-        if (technician != null && technician.getRole() != Role.TECHNICIAN)
-            throw new IllegalArgumentException("Assignee must be a technician");
-        return tickets.pageTickets(
-                null,
-                status,
-                priority,
-                category,
-                technician,
-                unassigned,
-                query == null || query.isBlank() ? null : query.trim(),
-                resolvedClosed,
-                overdue,
-                LocalDateTime.now(ZoneOffset.UTC),
+        User technician = resolveTechnician(technicianId);
+        return tickets.findAll(
+                TicketSpecifications.withFilters(
+                        null,
+                        status,
+                        priority,
+                        category,
+                        technician,
+                        unassigned,
+                        normalizeQuery(query),
+                        resolvedClosed,
+                        overdue,
+                        LocalDateTime.now(ZoneOffset.UTC)),
                 pageable);
     }
 
-    @Transactional(readOnly = true)
-    public List<Ticket> search(
-            TicketStatus status,
-            Priority priority,
-            Category category,
-            Long technicianId,
-            Boolean unassigned,
-            String query) {
-        User technician = technicianId == null
-                ? null
-                : users.findById(technicianId).orElseThrow(() -> new ResourceNotFoundException("Technician not found"));
-        if (technician != null && technician.getRole() != Role.TECHNICIAN) {
-            throw new IllegalArgumentException("Assignee must be a technician");
-        }
-        return tickets.filterTickets(
-                null,
-                status,
-                priority,
-                category,
-                technician,
-                unassigned,
-                query == null || query.isBlank() ? null : query.trim());
+    private User resolveTechnician(Long technicianId) {
+        if (technicianId == null) return null;
+        User technician =
+                users.findById(technicianId).orElseThrow(() -> new ResourceNotFoundException("Technician not found"));
+        if (technician.getRole() != Role.TECHNICIAN) throw new IllegalArgumentException("Assignee must be a technician");
+        return technician;
     }
 
-    public List<Ticket> visible(User user, String query, Priority priority) {
-        if (user.getRole() != Role.TECHNICIAN) {
-            throw new AccessDeniedException("Only technicians can view the ticket queue");
-        }
-        return search(null, priority, null, null, null, query);
+    private String normalizeQuery(String query) {
+        return query == null || query.isBlank() ? null : query.trim();
     }
 
     @Transactional
@@ -185,8 +138,7 @@ public class TicketService {
     }
 
     private void validateRequired(Ticket ticket) {
-        if (ticket.getTitle() == null || ticket.getTitle().isBlank())
-            throw new IllegalArgumentException("Title is required");
+        if (ticket.getTitle() == null || ticket.getTitle().isBlank()) throw new IllegalArgumentException("Title is required");
         if (ticket.getTitle().length() > 160) throw new IllegalArgumentException("Title cannot exceed 160 characters");
         if (ticket.getDescription() == null || ticket.getDescription().isBlank())
             throw new IllegalArgumentException("Description is required");
@@ -237,8 +189,18 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
+    public Page<TicketComment> publicComments(Long id, String username, Pageable pageable) {
+        return comments.findByTicketAndInternalNoteFalse(getMyTicket(id, username), pageable);
+    }
+
+    @Transactional(readOnly = true)
     public List<TicketComment> allComments(Long id) {
         return comments.findByTicketOrderByCreatedAtAsc(get(id));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TicketComment> allComments(Long id, Pageable pageable) {
+        return comments.findByTicket(get(id), pageable);
     }
 
     @Transactional
@@ -301,8 +263,7 @@ public class TicketService {
             updateStatusValue(ticket, actor, form.getStatus(), form.getResolutionNotes());
         } else if (form.getResolutionNotes() != null
                 && !Objects.equals(form.getResolutionNotes(), ticket.getResolutionNotes())) {
-            if (requiresResolutionNotes(ticket.getStatus())
-                    && form.getResolutionNotes().isBlank()) {
+            if (requiresResolutionNotes(ticket.getStatus()) && form.getResolutionNotes().isBlank()) {
                 throw new IllegalArgumentException("Resolution notes are required");
             }
             saveChange(ticket, actor, "resolutionNotes", ticket.getResolutionNotes(), form.getResolutionNotes());
@@ -313,8 +274,7 @@ public class TicketService {
     }
 
     private void validateRequired(TicketEditForm form) {
-        if (form.getTitle() == null || form.getTitle().isBlank())
-            throw new IllegalArgumentException("Title is required");
+        if (form.getTitle() == null || form.getTitle().isBlank()) throw new IllegalArgumentException("Title is required");
         if (form.getTitle().length() > 160) throw new IllegalArgumentException("Title cannot exceed 160 characters");
         if (form.getDescription() == null || form.getDescription().isBlank())
             throw new IllegalArgumentException("Description is required");
@@ -322,25 +282,6 @@ public class TicketService {
             throw new IllegalArgumentException("Description cannot exceed 2000 characters");
         if (form.getCategory() == null) throw new IllegalArgumentException("Category is required");
         if (form.getPriority() == null) throw new IllegalArgumentException("Priority is required");
-    }
-
-    @Transactional
-    public Ticket updateFields(
-            Long id, String title, String description, Category category, Priority priority, String username) {
-        TicketEditForm form = new TicketEditForm();
-        form.setTitle(title);
-        form.setDescription(description);
-        form.setCategory(category);
-        form.setPriority(priority);
-        return updateTicket(id, form, username);
-    }
-
-    @Transactional
-    @CacheEvict(
-            cacheNames = {"ticketCounts", "dashboardCounters"},
-            allEntries = true)
-    public void updateStatus(Long id, TicketStatus status, String notes, String username) {
-        updateStatus(id, status, notes, username, null);
     }
 
     @Transactional
@@ -364,14 +305,6 @@ public class TicketService {
     @CacheEvict(
             cacheNames = {"ticketCounts", "dashboardCounters"},
             allEntries = true)
-    public void assign(Long id, Long technicianId, String username) {
-        assign(id, technicianId, username, null);
-    }
-
-    @Transactional
-    @CacheEvict(
-            cacheNames = {"ticketCounts", "dashboardCounters"},
-            allEntries = true)
     public void assign(Long id, Long technicianId, String username, Long expectedVersion) {
         User actor = findTechnician(username);
         Ticket ticket = get(id);
@@ -382,7 +315,7 @@ public class TicketService {
     }
 
     private void assertExpectedVersion(Ticket ticket, Long expectedVersion) {
-        if (expectedVersion != null && !Objects.equals(expectedVersion, ticket.getVersion())) {
+        if (expectedVersion == null || !Objects.equals(expectedVersion, ticket.getVersion())) {
             throw new TicketEditConflictException();
         }
     }
@@ -391,8 +324,7 @@ public class TicketService {
         User assignee =
                 users.findById(technicianId).orElseThrow(() -> new ResourceNotFoundException("Technician not found"));
         if (assignee.getRole() != Role.TECHNICIAN) throw new IllegalArgumentException("Assignee must be a technician");
-        String previous =
-                ticket.getTechnician() == null ? null : ticket.getTechnician().getUsername();
+        String previous = ticket.getTechnician() == null ? null : ticket.getTechnician().getUsername();
         if (!Objects.equals(previous, assignee.getUsername())) {
             ticket.setTechnician(assignee);
             recordHistory(ticket, actor, "ASSIGNED", "Ticket assigned", "technician", previous, assignee.getUsername());
@@ -406,6 +338,10 @@ public class TicketService {
         TicketStatus previous = ticket.getStatus();
         String cleanNotes = notes == null ? null : notes.trim();
         if (status != previous) {
+            if (!allowedNextStatuses(previous).contains(status)) {
+                throw new IllegalArgumentException("A ticket cannot move from " + previous + " to " + status
+                        + ". Close it through RESOLVED, or reopen it instead.");
+            }
             slaPolicy.statusChanged(ticket, previous, status);
             recordHistory(ticket, actor, "STATUS_CHANGED", "Status updated", "status", value(previous), value(status));
             if (status == TicketStatus.RESOLVED && businessMetrics != null) {
@@ -489,47 +425,9 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Ticket> getAllTicketsPaginated(Pageable pageable) {
-        return tickets.findAll(pageable);
-    }
-
-    @Transactional(readOnly = true)
     public Page<Ticket> getTicketsByReporterPaginated(String username, Pageable pageable) {
         User reporter =
                 users.findByUsername(username).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return tickets.findByReporter(reporter, pageable);
-    }
-
-    public Ticket getTicketById(Long id) {
-        return get(id);
-    }
-
-    public Ticket createTicket(Ticket ticket, String username) {
-        return create(ticket, username);
-    }
-
-    public Ticket updateTicket(Long id, Ticket ticket, String username) {
-        TicketEditForm form = new TicketEditForm();
-        form.setTitle(ticket.getTitle());
-        form.setDescription(ticket.getDescription());
-        form.setCategory(ticket.getCategory());
-        form.setPriority(ticket.getPriority());
-        form.setTechnicianId(
-                ticket.getTechnician() != null ? ticket.getTechnician().getId() : null);
-        form.setStatus(ticket.getStatus());
-        form.setResolutionNotes(ticket.getResolutionNotes());
-        form.setVersion(get(id).getVersion());
-        return updateTicket(id, form, username);
-    }
-
-    public Ticket updateStatus(Long id, String status, String resolutionNotes, String username) {
-        TicketStatus ticketStatus = TicketStatus.valueOf(status.toUpperCase());
-        updateStatus(id, ticketStatus, resolutionNotes, username);
-        return get(id);
-    }
-
-    public Ticket assignTicket(Long id, Long technicianId, String username) {
-        assign(id, technicianId, username);
-        return get(id);
     }
 }

@@ -161,7 +161,7 @@ public class TicketPageController {
         model.addAttribute("ticket", ticket);
         model.addAttribute("history", tickets.history(id));
         model.addAttribute("comments", tickets.allComments(id));
-        model.addAttribute("statuses", TicketStatus.values());
+        model.addAttribute("allowedStatuses", tickets.allowedNextStatuses(ticket.getStatus()));
         model.addAttribute("technicians", users.findByRole(Role.TECHNICIAN));
         model.addAttribute("version", ticket.getVersion());
         model.addAttribute("attachments", attachments.listForTicket(id));
@@ -216,7 +216,7 @@ public class TicketPageController {
         model.addAttribute("ticket", ticket);
         model.addAttribute("form", TicketEditForm.fromTicket(ticket));
         populateTicketForm(model);
-        model.addAttribute("statuses", TicketStatus.values());
+        model.addAttribute("allowedStatuses", tickets.allowedNextStatuses(ticket.getStatus()));
         model.addAttribute("technicians", users.findByRole(Role.TECHNICIAN));
         return "ticket-edit";
     }
@@ -232,7 +232,7 @@ public class TicketPageController {
         if (result.hasErrors()) {
             model.addAttribute("ticket", tickets.get(id));
             populateTicketForm(model);
-            model.addAttribute("statuses", TicketStatus.values());
+            model.addAttribute("allowedStatuses", tickets.allowedNextStatuses(tickets.get(id).getStatus()));
             model.addAttribute("technicians", users.findByRole(Role.TECHNICIAN));
             return "ticket-edit";
         }

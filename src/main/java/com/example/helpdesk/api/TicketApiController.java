@@ -3,8 +3,12 @@ package com.example.helpdesk.api;
 import com.example.helpdesk.api.dto.AttachmentDto;
 import com.example.helpdesk.api.dto.PageResponse;
 import com.example.helpdesk.api.dto.TicketCommentDto;
+import com.example.helpdesk.api.dto.TicketCreateRequest;
 import com.example.helpdesk.api.dto.TicketDto;
+import com.example.helpdesk.api.dto.TicketUpdateRequest;
 import com.example.helpdesk.dto.TicketEditForm;
+import com.example.helpdesk.model.Category;
+import com.example.helpdesk.model.Priority;
 import com.example.helpdesk.model.Ticket;
 import com.example.helpdesk.model.TicketAttachment;
 import com.example.helpdesk.model.TicketAttachmentMetadata;
@@ -55,70 +59,73 @@ public class TicketApiController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all tickets with pagination")
+    @Operation(summary = "Search tickets with the same filters as the technician queue")
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<PageResponse<TicketDto>> getAllTickets(
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "Sort field") @RequestParam(defaultValue = "updatedAt") String sortBy,
-            @Parameter(description = "Sort direction") @RequestParam(defaultValue = "desc") String sortDir) {
+            @Parameter(description = "Sort direction") @RequestParam(defaultValue = "desc") String sortDir,
+            @Parameter(description = "Free-text search over title, description, and ticket id") @RequestParam(required = false)
+                    String q,
+            @RequestParam(required = false) TicketStatus status,
+            @RequestParam(required = false) Priority priority,
+            @RequestParam(required = false) Category category,
+            @Parameter(description = "Filter by technician id") @RequestParam(required = false) Long technicianId,
+            @Parameter(description = "true = only unassigned tickets, false = only assigned")
+                    @RequestParam(required = false)
+                    Boolean unassigned,
+            @Parameter(description = "Only tickets past their SLA due time") @RequestParam(defaultValue = "false")
+                    boolean overdue) {
 
         Pageable pageable = apiPageable(page, size, sortBy, sortDir);
-        Page<Ticket> tickets = ticketService.getAllTicketsPaginated(pageable);
-
-        List<TicketDto> ticketDtos =
-                tickets.getContent().stream().map(this::convertToDto).collect(Collectors.toList());
-
-        PageResponse<TicketDto> response = new PageResponse<>(
-                ticketDtos,
-                tickets.getNumber(),
-                tickets.getTotalPages(),
-                tickets.getTotalElements(),
-                tickets.getSize());
-
-        return ResponseEntity.ok(response);
+        Page<Ticket> tickets =
+                ticketService.searchPage(status, priority, category, technicianId, unassigned, q, false, overdue, pageable);
+        return ResponseEntity.ok(toPageResponse(tickets));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get ticket by ID")
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<TicketDto> getTicketById(@PathVariable Long id) {
-        Ticket ticket = ticketService.getTicketById(id);
-        return ResponseEntity.ok(convertToDto(ticket));
+        return ResponseEntity.ok(convertToDto(ticketService.get(id)));
     }
 
     @PostMapping
     @Operation(summary = "Create a new ticket")
     public ResponseEntity<TicketDto> createTicket(
-            @Valid @RequestBody TicketDto ticketDto, Authentication authentication) {
-        String username = authentication.getName();
-        Ticket ticket = convertToEntity(ticketDto);
-        Ticket created = ticketService.createTicket(ticket, username);
+            @Valid @RequestBody TicketCreateRequest request, Authentication authentication) {
+        Ticket ticket = new Ticket();
+        ticket.setTitle(request.title());
+        ticket.setDescription(request.description());
+        ticket.setCategory(request.category());
+        ticket.setPriority(request.priority());
+        Ticket created = ticketService.create(ticket, authentication.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(convertToDto(created));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update an existing ticket")
+    @Operation(summary = "Update title, description, category, or priority")
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<TicketDto> updateTicket(
-            @PathVariable Long id, @Valid @RequestBody TicketDto ticketDto, Authentication authentication) {
-        if (ticketDto.getVersion() == null) {
+            @PathVariable Long id, @Valid @RequestBody TicketUpdateRequest request, Authentication authentication) {
+        if (request.version() == null) {
             throw new org.springframework.web.server.ResponseStatusException(
                     HttpStatus.PRECONDITION_REQUIRED,
                     "Ticket version is required. Reload the ticket and include its version when updating.");
         }
         TicketEditForm form = new TicketEditForm();
-        form.setTitle(ticketDto.getTitle());
-        form.setDescription(ticketDto.getDescription());
-        form.setCategory(ticketDto.getCategory());
-        form.setPriority(ticketDto.getPriority());
-        form.setVersion(ticketDto.getVersion());
+        form.setTitle(request.title());
+        form.setDescription(request.description());
+        form.setCategory(request.category());
+        form.setPriority(request.priority());
+        form.setVersion(request.version());
         Ticket updated = ticketService.updateTicket(id, form, authentication.getName());
         return ResponseEntity.ok(convertToDto(updated));
     }
 
     @PatchMapping("/{id}/status")
-    @Operation(summary = "Update ticket status")
+    @Operation(summary = "Update ticket status; transitions follow the ticket state machine")
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<TicketDto> updateStatus(
             @PathVariable Long id,
@@ -133,8 +140,7 @@ public class TicketApiController {
             throw new IllegalArgumentException("Status must be one of OPEN, IN_PROGRESS, RESOLVED, or CLOSED");
         }
         ticketService.updateStatus(id, nextStatus, resolutionNotes, authentication.getName(), version);
-        Ticket updated = ticketService.getTicketById(id);
-        return ResponseEntity.ok(convertToDto(updated));
+        return ResponseEntity.ok(convertToDto(ticketService.get(id)));
     }
 
     @PatchMapping("/{id}/assign")
@@ -146,15 +152,14 @@ public class TicketApiController {
             @RequestParam Long version,
             Authentication authentication) {
         ticketService.assign(id, technicianId, authentication.getName(), version);
-        Ticket updated = ticketService.getTicketById(id);
-        return ResponseEntity.ok(convertToDto(updated));
+        return ResponseEntity.ok(convertToDto(ticketService.get(id)));
     }
 
     @GetMapping("/{id}/attachments")
     @Operation(summary = "List ticket attachments")
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<List<AttachmentDto>> listAttachments(@PathVariable Long id) {
-        ticketService.getTicketById(id);
+        ticketService.get(id);
         return ResponseEntity.ok(attachments.listForTicket(id).stream()
                 .map(this::toAttachmentDto)
                 .toList());
@@ -216,11 +221,25 @@ public class TicketApiController {
 
     @GetMapping("/{id}/comments")
     @Operation(summary = "List ticket comments visible to the current user")
-    public ResponseEntity<List<TicketCommentDto>> getComments(@PathVariable Long id, Authentication authentication) {
-        List<TicketComment> visible = isTechnician(authentication)
-                ? ticketService.allComments(id)
-                : ticketService.publicComments(id, authentication.getName());
-        return ResponseEntity.ok(visible.stream().map(this::toCommentDto).toList());
+    public ResponseEntity<PageResponse<TicketCommentDto>> getComments(
+            @PathVariable Long id,
+            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size (max 100)") @RequestParam(defaultValue = "20") int size,
+            Authentication authentication) {
+        Page<TicketComment> visible = isTechnician(authentication)
+                ? ticketService.allComments(id, commentPageable(page, size))
+                : ticketService.publicComments(id, authentication.getName(), commentPageable(page, size));
+        List<TicketCommentDto> dtos = visible.getContent().stream().map(this::toCommentDto).toList();
+        return ResponseEntity.ok(new PageResponse<>(
+                dtos, visible.getNumber(), visible.getTotalPages(), visible.getTotalElements(), visible.getSize()));
+    }
+
+    private Pageable commentPageable(int page, int size) {
+        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Invalid pagination parameters");
+        }
+        return PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt"));
     }
 
     @PostMapping("/{id}/comments")
@@ -267,18 +286,18 @@ public class TicketApiController {
         String username = authentication.getName();
         Pageable pageable = apiPageable(page, size, "updatedAt", "desc");
         Page<Ticket> tickets = ticketService.getTicketsByReporterPaginated(username, pageable);
+        return ResponseEntity.ok(toPageResponse(tickets));
+    }
 
+    private PageResponse<TicketDto> toPageResponse(Page<Ticket> tickets) {
         List<TicketDto> ticketDtos =
                 tickets.getContent().stream().map(this::convertToDto).collect(Collectors.toList());
-
-        PageResponse<TicketDto> response = new PageResponse<>(
+        return new PageResponse<>(
                 ticketDtos,
                 tickets.getNumber(),
                 tickets.getTotalPages(),
                 tickets.getTotalElements(),
                 tickets.getSize());
-
-        return ResponseEntity.ok(response);
     }
 
     private Pageable apiPageable(int page, int size, String sortBy, String sortDir) {
@@ -308,8 +327,7 @@ public class TicketApiController {
         dto.setCreatedAt(ticket.getCreatedAt().atOffset(ZoneOffset.UTC));
         dto.setUpdatedAt(ticket.getUpdatedAt().atOffset(ZoneOffset.UTC));
         dto.setVersion(ticket.getVersion());
-        dto.setSlaDueAt(
-                ticket.getSlaDueAt() == null ? null : ticket.getSlaDueAt().atOffset(ZoneOffset.UTC));
+        dto.setSlaDueAt(ticket.getSlaDueAt() == null ? null : ticket.getSlaDueAt().atOffset(ZoneOffset.UTC));
         dto.setSlaOverdue(ticket.isSlaOverdue());
         if (ticket.getReporter() != null) {
             dto.setReporterName(ticket.getReporter().getFullName());
@@ -318,15 +336,5 @@ public class TicketApiController {
             dto.setAssignedTechnicianName(ticket.getTechnician().getFullName());
         }
         return dto;
-    }
-
-    private Ticket convertToEntity(TicketDto dto) {
-        Ticket ticket = new Ticket();
-        ticket.setTitle(dto.getTitle());
-        ticket.setDescription(dto.getDescription());
-        ticket.setCategory(dto.getCategory());
-        ticket.setPriority(dto.getPriority());
-        ticket.setResolutionNotes(dto.getResolutionNotes());
-        return ticket;
     }
 }

@@ -33,19 +33,23 @@ class AssetServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AssetService(repo, users);
+        service = new AssetService(repo, users, null);
         testUser = new User("alice", "pass", "Alice Adams", Role.EMPLOYEE);
         testUser.setId(101L);
     }
 
+    private AssetForm form(String tag, String name, String category, AssetStatus status) {
+        AssetForm form = new AssetForm();
+        form.setAssetTag(tag);
+        form.setName(name);
+        form.setCategory(category);
+        form.setStatus(status);
+        return form;
+    }
+
     @Test
     void createAssetSuccess() {
-        AssetForm form = new AssetForm();
-        form.setAssetTag("AST-1001");
-        form.setName("MacBook Pro 16");
-        form.setCategory("Laptop");
-        form.setStatus(AssetStatus.AVAILABLE);
-        form.setVersion(0L);
+        AssetForm form = form("AST-1001", "MacBook Pro 16", "Laptop", AssetStatus.AVAILABLE);
 
         when(repo.existsByAssetTag("AST-1001")).thenReturn(false);
         when(repo.save(any(Asset.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -59,37 +63,36 @@ class AssetServiceTest {
 
     @Test
     void createAssignedAssetWithoutEmployeeIsRejected() {
-        Asset asset = new Asset();
-        asset.setAssetTag("AST-UNASSIGNED");
-        asset.setName("Laptop");
-        asset.setStatus(AssetStatus.ASSIGNED);
+        AssetForm form = form("AST-UNASSIGNED", "Laptop", "Laptop", AssetStatus.ASSIGNED);
         when(repo.existsByAssetTag("AST-UNASSIGNED")).thenReturn(false);
 
-        assertThrows(IllegalArgumentException.class, () -> service.createAsset(asset));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> service.create(form));
+
+        assertEquals("Assigned assets must have an employee", ex.getMessage());
         verify(repo, never()).save(any(Asset.class));
     }
 
     @Test
-    void apiUpdateKeepsAssignedStatusWhileEmployeeRemainsAssigned() {
+    void updateKeepsAssignedStatusWhileEmployeeRemainsAssigned() {
         Asset existing = new Asset();
         existing.setId(21L);
+        existing.setVersion(0L);
         existing.setAssetTag("AST-21");
         existing.setName("Assigned laptop");
         existing.setCategory("Laptop");
         existing.setAssignedUser(testUser);
         existing.setStatus(AssetStatus.ASSIGNED);
 
-        Asset update = new Asset();
-        update.setAssetTag("AST-21");
-        update.setName("Assigned laptop");
-        update.setCategory("Laptop");
-        update.setStatus(AssetStatus.AVAILABLE);
-
         when(repo.findById(21L)).thenReturn(Optional.of(existing));
         when(repo.existsByAssetTagAndIdNot("AST-21", 21L)).thenReturn(false);
+        when(users.findById(101L)).thenReturn(Optional.of(testUser));
         when(repo.save(any(Asset.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Asset updated = service.updateAsset(21L, update, existing.getVersion());
+        AssetForm form = form("AST-21", "Assigned laptop", "Laptop", AssetStatus.AVAILABLE);
+        form.setAssignedUserId(testUser.getId());
+        form.setVersion(existing.getVersion());
+
+        Asset updated = service.update(21L, form);
 
         assertSame(testUser, updated.getAssignedUser());
         assertEquals(AssetStatus.ASSIGNED, updated.getStatus());
@@ -97,11 +100,7 @@ class AssetServiceTest {
 
     @Test
     void createAssetDuplicateTagThrowsException() {
-        AssetForm form = new AssetForm();
-        form.setAssetTag("AST-DUPLICATE");
-        form.setName("Monitor");
-        form.setCategory("Display");
-
+        AssetForm form = form("AST-DUPLICATE", "Monitor", "Display", AssetStatus.AVAILABLE);
         when(repo.existsByAssetTag("AST-DUPLICATE")).thenReturn(true);
 
         assertThrows(IllegalArgumentException.class, () -> service.create(form));
@@ -112,6 +111,7 @@ class AssetServiceTest {
     void editExistingAssetPreservesTagWithoutDuplicateError() {
         Asset existing = new Asset();
         existing.setId(10L);
+        existing.setVersion(0L);
         existing.setAssetTag("AST-KEEP");
         existing.setName("Dell Latitude");
         existing.setCategory("Laptop");
@@ -121,11 +121,7 @@ class AssetServiceTest {
         when(repo.existsByAssetTagAndIdNot("AST-KEEP", 10L)).thenReturn(false);
         when(repo.save(any(Asset.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        AssetForm form = new AssetForm();
-        form.setAssetTag("AST-KEEP");
-        form.setName("Dell Latitude 5540 (Upgraded RAM)");
-        form.setCategory("Laptop");
-        form.setStatus(AssetStatus.AVAILABLE);
+        AssetForm form = form("AST-KEEP", "Dell Latitude 5540 (Upgraded RAM)", "Laptop", AssetStatus.AVAILABLE);
         form.setVersion(0L);
 
         Asset updated = service.update(10L, form);
@@ -139,16 +135,12 @@ class AssetServiceTest {
     void editAssetDuplicateTagThrowsException() {
         Asset existing = new Asset();
         existing.setId(10L);
+        existing.setVersion(0L);
         existing.setAssetTag("AST-OLD");
-
         when(repo.findById(10L)).thenReturn(Optional.of(existing));
         when(repo.existsByAssetTagAndIdNot("AST-TAKEN", 10L)).thenReturn(true);
 
-        AssetForm form = new AssetForm();
-        form.setAssetTag("AST-TAKEN");
-        form.setName("Keyboard");
-        form.setCategory("Peripherals");
-        form.setStatus(AssetStatus.AVAILABLE);
+        AssetForm form = form("AST-TAKEN", "Keyboard", "Peripherals", AssetStatus.AVAILABLE);
         form.setVersion(0L);
 
         assertThrows(IllegalArgumentException.class, () -> service.update(10L, form));
@@ -162,25 +154,34 @@ class AssetServiceTest {
         existing.setVersion(3L);
         existing.setAssetTag("AST-OLD");
         when(repo.findById(10L)).thenReturn(Optional.of(existing));
-        AssetForm form = new AssetForm();
-        form.setAssetTag("AST-OLD");
-        form.setName("Old laptop");
-        form.setCategory("Laptop");
-        form.setStatus(AssetStatus.AVAILABLE);
+
+        AssetForm form = form("AST-OLD", "Old laptop", "Laptop", AssetStatus.AVAILABLE);
         form.setVersion(2L);
-        assertThrows(com.example.helpdesk.exception.AssetEditConflictException.class, () -> service.update(10L, form));
+
+        assertThrows(
+                com.example.helpdesk.exception.AssetEditConflictException.class, () -> service.update(10L, form));
+        verify(repo, never()).save(any(Asset.class));
+    }
+
+    @Test
+    void updateWithMissingVersionIsRejected() {
+        Asset existing = new Asset();
+        existing.setId(10L);
+        existing.setVersion(3L);
+        existing.setAssetTag("AST-OLD");
+        when(repo.findById(10L)).thenReturn(Optional.of(existing));
+
+        AssetForm form = form("AST-OLD", "Old laptop", "Laptop", AssetStatus.AVAILABLE);
+
+        assertThrows(
+                com.example.helpdesk.exception.AssetEditConflictException.class, () -> service.update(10L, form));
         verify(repo, never()).save(any(Asset.class));
     }
 
     @Test
     void retiredAssetCannotBeAssigned() {
-        AssetForm form = new AssetForm();
-        form.setAssetTag("AST-RETIRED");
-        form.setName("Old Server");
-        form.setCategory("Server");
-        form.setStatus(AssetStatus.RETIRED);
+        AssetForm form = form("AST-RETIRED", "Old Server", "Server", AssetStatus.RETIRED);
         form.setAssignedUserId(101L);
-        form.setVersion(0L);
 
         assertThrows(IllegalArgumentException.class, () -> service.create(form));
     }
@@ -189,6 +190,7 @@ class AssetServiceTest {
     void assignUserTransitionsStatusToAssigned() {
         Asset existing = new Asset();
         existing.setId(20L);
+        existing.setVersion(0L);
         existing.setAssetTag("AST-20");
         existing.setName("iPad Pro");
         existing.setCategory("Tablet");
@@ -199,11 +201,7 @@ class AssetServiceTest {
         when(users.findById(101L)).thenReturn(Optional.of(testUser));
         when(repo.save(any(Asset.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        AssetForm form = new AssetForm();
-        form.setAssetTag("AST-20");
-        form.setName("iPad Pro");
-        form.setCategory("Tablet");
-        form.setStatus(AssetStatus.AVAILABLE);
+        AssetForm form = form("AST-20", "iPad Pro", "Tablet", AssetStatus.AVAILABLE);
         form.setAssignedUserId(101L);
         form.setVersion(0L);
 
@@ -214,9 +212,10 @@ class AssetServiceTest {
     }
 
     @Test
-    void unassignAssetSetsStatusToAvailable() {
+    void unassignSetsStatusToAvailable() {
         Asset existing = new Asset();
         existing.setId(30L);
+        existing.setVersion(1L);
         existing.setAssetTag("AST-30");
         existing.setName("Lenovo ThinkPad");
         existing.setCategory("Laptop");
@@ -226,39 +225,65 @@ class AssetServiceTest {
         when(repo.findById(30L)).thenReturn(Optional.of(existing));
         when(repo.save(any(Asset.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.unassign(30L);
+        Asset updated = service.unassign(30L, 1L);
 
-        assertNull(existing.getAssignedUser());
-        assertEquals(AssetStatus.AVAILABLE, existing.getStatus());
+        assertNull(updated.getAssignedUser());
+        assertEquals(AssetStatus.AVAILABLE, updated.getStatus());
         verify(repo).save(existing);
+    }
+
+    @Test
+    void unassignWithMissingVersionIsRejected() {
+        Asset existing = new Asset();
+        existing.setId(30L);
+        existing.setVersion(1L);
+        existing.setAssetTag("AST-30");
+        when(repo.findById(30L)).thenReturn(Optional.of(existing));
+
+        assertThrows(
+                com.example.helpdesk.exception.AssetEditConflictException.class, () -> service.unassign(30L, null));
+        verify(repo, never()).save(any(Asset.class));
     }
 
     @Test
     void nonexistentAssetThrowsResourceNotFoundException() {
         when(repo.findById(999L)).thenReturn(Optional.empty());
 
-        AssetForm form = new AssetForm();
-        form.setAssetTag("AST-X");
-        form.setName("Unknown");
-        form.setCategory("Other");
-        form.setStatus(AssetStatus.AVAILABLE);
+        AssetForm form = form("AST-X", "Unknown", "Other", AssetStatus.AVAILABLE);
 
         assertThrows(ResourceNotFoundException.class, () -> service.update(999L, form));
     }
 
     @Test
-    void saveCountsCreationEvenWhenRepositoryAssignsIdImmediately() {
-        com.example.helpdesk.metrics.BusinessMetrics metrics = mock(com.example.helpdesk.metrics.BusinessMetrics.class);
+    void createCountsCreationMetricWhenRepositoryAssignsIdImmediately() {
+        com.example.helpdesk.metrics.BusinessMetrics metrics =
+                mock(com.example.helpdesk.metrics.BusinessMetrics.class);
         AssetService measuredService = new AssetService(repo, users, metrics);
-        Asset asset = new Asset();
-        asset.setAssetTag("AST-METRIC");
-        asset.setName("Monitor");
+
         when(repo.existsByAssetTag("AST-METRIC")).thenReturn(false);
-        when(repo.save(asset)).thenAnswer(invocation -> {
-            asset.setId(77L);
-            return asset;
+        when(repo.save(any(Asset.class))).thenAnswer(invocation -> {
+            Asset saved = invocation.getArgument(0);
+            saved.setId(77L);
+            return saved;
         });
-        measuredService.save(asset);
+
+        measuredService.create(form("AST-METRIC", "Monitor", "Display", AssetStatus.AVAILABLE));
+
         verify(metrics).incrementAssetCreated();
+    }
+
+    @Test
+    void assignRequiresExpectedVersion() {
+        Asset existing = new Asset();
+        existing.setId(40L);
+        existing.setVersion(2L);
+        existing.setAssetTag("AST-40");
+        existing.setStatus(AssetStatus.AVAILABLE);
+        when(repo.findById(40L)).thenReturn(Optional.of(existing));
+
+        assertThrows(
+                com.example.helpdesk.exception.AssetEditConflictException.class,
+                () -> service.assign(40L, 101L, null));
+        verify(repo, never()).save(any(Asset.class));
     }
 }

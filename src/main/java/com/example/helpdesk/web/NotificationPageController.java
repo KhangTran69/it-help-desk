@@ -30,9 +30,9 @@ public class NotificationPageController {
 
     @PostMapping("/notifications/{id}/read")
     String markRead(@PathVariable Long id, Authentication authentication, RedirectAttributes redirect) {
-        notifications.findByRecipientUsernameOrderByCreatedAtDesc(authentication.getName()).stream()
-                .filter(notification -> notification.getId().equals(id) && !notification.isRead())
-                .findFirst()
+        notifications
+                .findByIdAndRecipientUsername(id, authentication.getName())
+                .filter(notification -> !notification.isRead())
                 .ifPresent(notification -> {
                     notification.markRead();
                     notifications.save(notification);
@@ -43,13 +43,10 @@ public class NotificationPageController {
 
     @PostMapping("/notifications/read-all")
     String markAllRead(Authentication authentication, RedirectAttributes redirect) {
-        notifications
-                .findByRecipientUsernameAndReadFalse(authentication.getName())
-                .forEach(notification -> {
-                    notification.markRead();
-                    notifications.save(notification);
-                });
-        redirect.addFlashAttribute("success", "All notifications marked as read.");
+        int updated = notifications.markAllReadByUsername(authentication.getName());
+        redirect.addFlashAttribute(
+                "success",
+                updated == 1 ? "1 notification marked as read." : updated + " notifications marked as read.");
         return "redirect:/notifications";
     }
 }
