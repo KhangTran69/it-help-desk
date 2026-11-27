@@ -8,7 +8,7 @@ COPY src ./src
 COPY scripts ./scripts
 RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -DforkCount=0 verify
 
-FROM eclipse-temurin:21-jre-jammy AS runtime
+FROM eclipse-temurin:25-jre-jammy AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 10001 --create-home appuser
