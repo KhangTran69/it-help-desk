@@ -41,6 +41,31 @@ jobs:
             target/failsafe-reports/
           if-no-files-found: ignore
           retention-days: 7
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report-${{ github.run_id }}
+          path: target/site/jacoco/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: SpotBugs static analysis report (non-blocking until triaged)
+        run: mvn --batch-mode --no-transfer-progress spotbugs:spotbugs
+      - name: Upload SpotBugs findings
+        uses: actions/upload-artifact@v4
+        with:
+          name: spotbugs-${{ github.run_id }}
+          path: target/spotbugsXml.xml
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Generate CycloneDX SBOM
+        run: mvn --batch-mode --no-transfer-progress cyclonedx:makeAggregateBom
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.run_id }}
+          path: target/bom.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Build container image
         run: docker build --tag it-helpdesk:ci .
       - name: Run Compose integration smoke check
