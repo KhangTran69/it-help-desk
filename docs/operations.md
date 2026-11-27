@@ -38,8 +38,9 @@ The SLA escalation sweep runs every 15 minutes (`SLA_SWEEP_INTERVAL_MS`), sends
 one notification per breached ticket to the reporter and the assigned
 technician, increments `helpdesk.sla.breached`, and records
 `sla_breach_notified_at` so no ticket is escalated twice. Disable it with
-`SLA_ESCALATION_ENABLED=false`. The sweep is process-local: run one app
-instance or add a distributed lock (ShedLock) before scaling out.
+`SLA_ESCALATION_ENABLED=false`. The sweep is guarded by ShedLock (the
+`shedlock` table from V11), so scaled-out app instances elect a single
+sweeper automatically.
 
 ## Backup and restore
 

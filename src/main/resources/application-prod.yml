@@ -19,6 +19,9 @@ spring:
       cache-null-values: false
   lifecycle:
     timeout-per-shutdown-phase: 30s
+  threads:
+    virtual:
+      enabled: true
 server:
   shutdown: graceful
   tomcat:

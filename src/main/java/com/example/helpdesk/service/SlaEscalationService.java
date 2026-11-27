@@ -12,6 +12,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +47,7 @@ public class SlaEscalationService {
     }
 
     @Scheduled(fixedDelayString = "${helpdesk.sla.escalation.sweep-interval-ms:900000}", initialDelayString = "60000")
+    @SchedulerLock(name = "slaEscalationSweep", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
     @Transactional
     public void sweep() {
         if (!enabled) return;
