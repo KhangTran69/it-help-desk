@@ -63,7 +63,7 @@ class MySqlRedisContainersTest {
     @Test
     void migrationsAndRedisDashboardCacheWorkWithRealServices() {
         assertEquals(
-                8,
+                9,
                 jdbc.queryForObject(
                         "SELECT MAX(version) FROM flyway_schema_history WHERE success = TRUE", Integer.class));
         assertTrue(jdbc.queryForObject(

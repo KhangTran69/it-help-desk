@@ -41,5 +41,6 @@ logging:
     root: INFO
     com.example: INFO
 helpdesk:
+  api-docs-public: ${HELPDESK_API_DOCS_PUBLIC:false}
   login-throttle:
     shared-store: ${LOGIN_THROTTLE_SHARED_STORE:true}

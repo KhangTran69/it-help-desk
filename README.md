@@ -57,9 +57,13 @@ This removes only the scratch H2 demo database for this worktree. Do not use `do
 - The technician dashboard links to an overdue-ticket view, with overdue filters retained while paging results.
 - Technicians can enable or disable accounts. Disabled accounts cannot sign in, existing browser sessions are ended on the next request, and issued JWTs stop authenticating immediately.
 - Browser and API login attempts are throttled after five failures per username and client address.
+- REST clients receive a refresh token at login; `POST /api/auth/refresh` exchanges it (and rotates it) for a fresh access-token pair. Refresh tokens cannot call API endpoints directly, and disabled accounts cannot mint new tokens.
+- In-app notifications can also go out by email when SMTP is configured (`MAIL_ENABLED=true` plus a `MAIL_HOST`); Mailpit provides a local inbox via `docker compose --profile mail up`.
+- An SLA escalation sweep runs periodically: tickets past their due time get one notification to the reporter and technician, a `helpdesk.sla.breached` metric increment, and a persisted notified-at timestamp so the sweep never repeats itself.
 - Timestamps are stored in UTC and shown in Philippine Time (PHT).
 - Requests receive a validated or generated `X-Request-ID`, included in responses and logs.
 - Dashboard metrics are cached with Redis; cache failures fall back gracefully.
+- All inline JavaScript lives in external files; the Content-Security-Policy serves `script-src 'self'` with no inline-script allowances.
 - Browser pages use session authentication with CSRF protection. REST endpoints run in a separate stateless security chain and accept JWT bearer tokens only; a browser session cookie cannot authenticate API requests.
 - REST ticket comments honor ownership and technician visibility. Ticket update, assignment, and status requests require the current version and reject stale edits with HTTP 409. REST timestamps use explicit UTC offsets; browser dates are labeled PHT.
 - OpenAPI/Swagger documentation and Spring Boot Actuator health and metrics endpoints.
@@ -98,7 +102,8 @@ CSRF remains enabled for browser forms. The API accepts bearer tokens from POST 
 
 - Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 - OpenAPI JSON: /v3/api-docs
-- Login: POST /api/auth/login with a username and password JSON body
+- Login: POST /api/auth/login with a username and password JSON body; the response includes a short-lived access token and a 7-day refresh token
+- Refresh: POST /api/auth/refresh with `{"refreshToken": "..."}` returns a fresh token pair (rotated)
 - Ticket endpoints: /api/tickets
 - Asset endpoints: /api/assets
 - Health: /actuator/health
@@ -157,9 +162,10 @@ Local and demo profiles use an in-memory login throttle that resets on restart. 
 ## Known Limitations
 
 - No AWS or other hosted deployment is configured; CI builds the image but does not publish or deploy it.
-- In-app notifications cover status changes, assignments, and priority changes; email delivery is not implemented.
-- JWT refresh/revocation lists are not implemented; access tokens expire after 15 minutes by default, and disabling an account immediately rejects its tokens.
+- JWT revocation lists are not implemented; access tokens expire quickly by default, refresh tokens rotate on use, and disabling an account immediately rejects both token types.
 - Local login throttling is in-memory and does not coordinate across replicas; the production profile defaults to the Redis-backed shared store.
-- Password recovery, email delivery, and business-hours SLA calendars are not implemented.
-- Prometheus alert rules are examples; no alert receiver or on-call notification channel is configured.
+- Password recovery is not implemented (accounts have an optional email address, but no reset flow yet).
+- Email delivery is plain-text, best-effort, and silent when SMTP is not configured; there are no digest or rich-template emails.
+- The SLA escalation sweep is process-local; multi-instance deployments need ShedLock or an equivalent distributed lock.
+- The Prometheus alert receiver sends to Mailpit locally; point Alertmanager at a real provider before relying on it.
 - This is a portfolio/demo application, not a production deployment.

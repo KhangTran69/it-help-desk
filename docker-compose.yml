@@ -55,6 +55,26 @@ services:
     restart: unless-stopped
     networks:
       - helpdesk
+  mailpit:
+    image: axllent/mailpit:v1.24
+    profiles: [mail, observability]
+    ports:
+      - "127.0.0.1:8025:8025"
+    volumes:
+      - helpdesk_mailpit:/data
+    restart: unless-stopped
+    networks:
+      - helpdesk
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    profiles: [observability]
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./ops/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    restart: unless-stopped
+    networks:
+      - helpdesk
   prometheus:
     image: prom/prometheus:v3.5.0
     profiles: [observability]
@@ -90,6 +110,7 @@ volumes:
   helpdesk_redis:
   helpdesk_prometheus:
   helpdesk_grafana:
+  helpdesk_mailpit:
 networks:
   helpdesk:
     driver: bridge

@@ -12,6 +12,7 @@ public class BusinessMetrics {
     private final Counter ticketClosedCounter;
     private final Counter assetCreatedCounter;
     private final Counter assetAssignedCounter;
+    private final Counter slaBreachedCounter;
 
     public BusinessMetrics(MeterRegistry registry) {
         this.ticketCreatedCounter = Counter.builder("helpdesk.tickets.created")
@@ -33,6 +34,10 @@ public class BusinessMetrics {
         this.assetAssignedCounter = Counter.builder("helpdesk.assets.assigned")
                 .description("Number of assets assigned")
                 .register(registry);
+
+        this.slaBreachedCounter = Counter.builder("helpdesk.sla.breached")
+                .description("Number of SLA breaches escalated")
+                .register(registry);
     }
 
     public void incrementTicketCreated() {
@@ -53,5 +58,9 @@ public class BusinessMetrics {
 
     public void incrementAssetAssigned() {
         assetAssignedCounter.increment();
+    }
+
+    public void incrementSlaBreached() {
+        slaBreachedCounter.increment();
     }
 }

@@ -45,13 +45,7 @@ class TicketServiceTest {
     @BeforeEach
     void setUp() {
         service = new TicketService(
-                tickets,
-                users,
-                history,
-                null,
-                null,
-                null,
-                new SlaPolicy(Clock.systemUTC(), 1209600, 259200, 86400));
+                tickets, users, history, null, null, null, new SlaPolicy(Clock.systemUTC(), 1209600, 259200, 86400));
 
         employeeAlice = new User("alice", "pass", "Alice Adams", Role.EMPLOYEE);
         employeeAlice.setId(101L);
@@ -84,7 +78,8 @@ class TicketServiceTest {
 
     @Test
     void resolvedTicketRequiresNotes() {
-        assertThrows(IllegalArgumentException.class, () -> service.updateStatus(1L, TicketStatus.RESOLVED, "", "tech", 0L));
+        assertThrows(
+                IllegalArgumentException.class, () -> service.updateStatus(1L, TicketStatus.RESOLVED, "", "tech", 0L));
         assertThrows(
                 IllegalArgumentException.class, () -> service.updateStatus(1L, TicketStatus.CLOSED, "   ", "tech", 0L));
     }
@@ -94,7 +89,8 @@ class TicketServiceTest {
         when(users.findByUsername("alice")).thenReturn(Optional.of(employeeAlice));
 
         assertThrows(
-                AccessDeniedException.class, () -> service.updateStatus(1L, TicketStatus.IN_PROGRESS, null, "alice", 0L));
+                AccessDeniedException.class,
+                () -> service.updateStatus(1L, TicketStatus.IN_PROGRESS, null, "alice", 0L));
         assertThrows(AccessDeniedException.class, () -> service.assign(1L, technicianCharlie.getId(), "alice", 0L));
         verify(tickets, never()).save(any());
     }
@@ -118,8 +114,12 @@ class TicketServiceTest {
 
     @Test
     void allowedNextStatusesFollowTheStateMachine() {
-        assertEquals(java.util.Set.of(TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED), service.allowedNextStatuses(TicketStatus.OPEN));
-        assertEquals(java.util.Set.of(TicketStatus.OPEN, TicketStatus.CLOSED), service.allowedNextStatuses(TicketStatus.RESOLVED));
+        assertEquals(
+                java.util.Set.of(TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED),
+                service.allowedNextStatuses(TicketStatus.OPEN));
+        assertEquals(
+                java.util.Set.of(TicketStatus.OPEN, TicketStatus.CLOSED),
+                service.allowedNextStatuses(TicketStatus.RESOLVED));
         assertTrue(service.allowedNextStatuses(TicketStatus.CLOSED).contains(TicketStatus.OPEN));
         assertTrue(service.allowedNextStatuses(null).isEmpty());
     }
@@ -167,7 +167,7 @@ class TicketServiceTest {
         ticket.setTechnician(previousTechnician);
 
         TicketNotificationRepository notifications = mock(TicketNotificationRepository.class);
-        NotificationService notificationService = new NotificationService(notifications);
+        NotificationService notificationService = new NotificationService(notifications, mock(MailNotifier.class));
         ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
         doAnswer(invocation -> {
                     notificationService.onTicketEvent(invocation.getArgument(0));

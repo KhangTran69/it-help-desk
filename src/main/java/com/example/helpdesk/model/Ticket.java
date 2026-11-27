@@ -59,6 +59,9 @@ public class Ticket {
     @Column(name = "sla_due_at")
     private LocalDateTime slaDueAt;
 
+    @Column(name = "sla_breach_notified_at")
+    private LocalDateTime slaBreachNotifiedAt;
+
     public Ticket() {}
 
     @PreUpdate
@@ -189,6 +192,14 @@ public class Ticket {
 
     public LocalDateTime getSlaDueAt() {
         return slaDueAt;
+    }
+
+    public LocalDateTime getSlaBreachNotifiedAt() {
+        return slaBreachNotifiedAt;
+    }
+
+    public void setSlaBreachNotifiedAt(LocalDateTime value) {
+        slaBreachNotifiedAt = value;
     }
 
     public void setSlaDueAt(LocalDateTime value) {

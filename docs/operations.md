@@ -8,7 +8,38 @@ Set `GRAFANA_ADMIN_PASSWORD` to a unique local password, then start the optional
 docker compose --profile observability up --build
 ```
 
-Open Grafana at <http://localhost:3000>. Prometheus is not published to the host; Grafana reaches it on the private Compose network. The dashboard shows request rate, server errors, and ticket/asset creation counters. Prometheus rules include availability and elevated 5xx examples. No alert receiver is configured.
+Open Grafana at <http://localhost:3000>. Prometheus is not published to the host; Grafana reaches it on the private Compose network. The dashboard shows request rate, server errors, ticket/asset creation counters, and the SLA breach counter. Prometheus rules include availability and elevated 5xx examples; fired alerts route to Alertmanager (`127.0.0.1:9093`), which forwards them to Mailpit's local inbox. Replace the Alertmanager SMTP host with a real provider before relying on this channel.
+
+## Reverse proxy and client addresses
+
+The application sets `server.forward-headers-strategy: framework`, so an HTTPS
+reverse proxy forwarding `X-Forwarded-For`/`X-Forwarded-Proto` produces correct
+redirect URLs and correct client IPs for the login throttle. Only enable proxy
+forwarding from trusted networks; a client that can set these headers directly
+would otherwise spoof its throttling identity.
+
+## API documentation exposure
+
+Swagger UI and the OpenAPI documents are public in development
+(`HELPDESK_API_DOCS_PUBLIC` defaults to true) and locked behind authentication
+in the prod profile (`HELPDESK_API_DOCS_PUBLIC=false`), where signing in is
+required to read them.
+
+## Notification email and the SLA escalation sweep
+
+Outbound email is optional and plain-text. Set `MAIL_ENABLED=true`,
+`MAIL_HOST=mailpit` (locally), and optionally `MAIL_PORT`, `MAIL_FROM`, then
+start `docker compose --profile mail up`. Mailpit exposes its inbox at
+<http://127.0.0.1:8025>. Users need an email address on their account; demo
+accounts ship with `employee@demo.local` and `technician@demo.local`. Delivery
+failures are logged and never interrupt ticket actions.
+
+The SLA escalation sweep runs every 15 minutes (`SLA_SWEEP_INTERVAL_MS`), sends
+one notification per breached ticket to the reporter and the assigned
+technician, increments `helpdesk.sla.breached`, and records
+`sla_breach_notified_at` so no ticket is escalated twice. Disable it with
+`SLA_ESCALATION_ENABLED=false`. The sweep is process-local: run one app
+instance or add a distributed lock (ShedLock) before scaling out.
 
 ## Backup and restore
 

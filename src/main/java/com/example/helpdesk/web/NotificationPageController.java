@@ -32,9 +32,7 @@ public class NotificationPageController {
                 "isTechnician", authentication.getAuthorities().stream().anyMatch(authority -> "ROLE_TECHNICIAN"
                         .equals(authority.getAuthority())));
         Pageable pageable = PageRequest.of(
-                Math.max(page, 0),
-                Math.max(1, Math.min(size, 50)),
-                Sort.by(Sort.Direction.DESC, "createdAt"));
+                Math.max(page, 0), Math.max(1, Math.min(size, 50)), Sort.by(Sort.Direction.DESC, "createdAt"));
         model.addAttribute(
                 "notifications",
                 notifications.findByRecipientUsernameOrderByCreatedAtDesc(authentication.getName(), pageable));

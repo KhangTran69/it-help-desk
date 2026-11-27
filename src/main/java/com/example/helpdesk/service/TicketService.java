@@ -109,7 +109,8 @@ public class TicketService {
         if (technicianId == null) return null;
         User technician =
                 users.findById(technicianId).orElseThrow(() -> new ResourceNotFoundException("Technician not found"));
-        if (technician.getRole() != Role.TECHNICIAN) throw new IllegalArgumentException("Assignee must be a technician");
+        if (technician.getRole() != Role.TECHNICIAN)
+            throw new IllegalArgumentException("Assignee must be a technician");
         return technician;
     }
 
@@ -138,7 +139,8 @@ public class TicketService {
     }
 
     private void validateRequired(Ticket ticket) {
-        if (ticket.getTitle() == null || ticket.getTitle().isBlank()) throw new IllegalArgumentException("Title is required");
+        if (ticket.getTitle() == null || ticket.getTitle().isBlank())
+            throw new IllegalArgumentException("Title is required");
         if (ticket.getTitle().length() > 160) throw new IllegalArgumentException("Title cannot exceed 160 characters");
         if (ticket.getDescription() == null || ticket.getDescription().isBlank())
             throw new IllegalArgumentException("Description is required");
@@ -263,7 +265,8 @@ public class TicketService {
             updateStatusValue(ticket, actor, form.getStatus(), form.getResolutionNotes());
         } else if (form.getResolutionNotes() != null
                 && !Objects.equals(form.getResolutionNotes(), ticket.getResolutionNotes())) {
-            if (requiresResolutionNotes(ticket.getStatus()) && form.getResolutionNotes().isBlank()) {
+            if (requiresResolutionNotes(ticket.getStatus())
+                    && form.getResolutionNotes().isBlank()) {
                 throw new IllegalArgumentException("Resolution notes are required");
             }
             saveChange(ticket, actor, "resolutionNotes", ticket.getResolutionNotes(), form.getResolutionNotes());
@@ -274,7 +277,8 @@ public class TicketService {
     }
 
     private void validateRequired(TicketEditForm form) {
-        if (form.getTitle() == null || form.getTitle().isBlank()) throw new IllegalArgumentException("Title is required");
+        if (form.getTitle() == null || form.getTitle().isBlank())
+            throw new IllegalArgumentException("Title is required");
         if (form.getTitle().length() > 160) throw new IllegalArgumentException("Title cannot exceed 160 characters");
         if (form.getDescription() == null || form.getDescription().isBlank())
             throw new IllegalArgumentException("Description is required");
@@ -324,7 +328,8 @@ public class TicketService {
         User assignee =
                 users.findById(technicianId).orElseThrow(() -> new ResourceNotFoundException("Technician not found"));
         if (assignee.getRole() != Role.TECHNICIAN) throw new IllegalArgumentException("Assignee must be a technician");
-        String previous = ticket.getTechnician() == null ? null : ticket.getTechnician().getUsername();
+        String previous =
+                ticket.getTechnician() == null ? null : ticket.getTechnician().getUsername();
         if (!Objects.equals(previous, assignee.getUsername())) {
             ticket.setTechnician(assignee);
             recordHistory(ticket, actor, "ASSIGNED", "Ticket assigned", "technician", previous, assignee.getUsername());

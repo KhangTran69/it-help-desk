@@ -23,10 +23,15 @@ public class DataInitializer {
             UserRepository users, TicketRepository tickets, PasswordEncoder encoder, SlaPolicy slaPolicy) {
         return args -> {
             if (users.findByUsername("employee").isEmpty()) {
-                users.save(new User("employee", encoder.encode("employee123"), "Demo Employee", Role.EMPLOYEE));
+                User employee = new User("employee", encoder.encode("employee123"), "Demo Employee", Role.EMPLOYEE);
+                employee.setEmail("employee@demo.local");
+                users.save(employee);
             }
             if (users.findByUsername("technician").isEmpty()) {
-                users.save(new User("technician", encoder.encode("technician123"), "Demo Technician", Role.TECHNICIAN));
+                User technician =
+                        new User("technician", encoder.encode("technician123"), "Demo Technician", Role.TECHNICIAN);
+                technician.setEmail("technician@demo.local");
+                users.save(technician);
             }
             if (!tickets.existsByTitle("Demo: Laptop cannot connect to Wi-Fi")) {
                 Ticket ticket = new Ticket();

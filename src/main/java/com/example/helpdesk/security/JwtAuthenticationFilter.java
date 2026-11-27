@@ -36,7 +36,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7);
-        if (!jwtUtil.validateToken(token)) {
+        if (!jwtUtil.validateToken(token) || jwtUtil.isRefreshToken(token)) {
+            // Refresh tokens authenticate the /api/auth/refresh exchange, never API calls directly.
             filterChain.doFilter(request, response);
             return;
         }
