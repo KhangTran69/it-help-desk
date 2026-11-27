@@ -19,13 +19,11 @@ spring:
       cache-null-values: false
   lifecycle:
     timeout-per-shutdown-phase: 30s
+  threads:
+    virtual:
+      enabled: true
 server:
   shutdown: graceful
-  tomcat:
-    threads:
-      max: 200
-      min-spare: 10
-spring.threads.virtual.enabled: true
   tomcat:
     threads:
       max: 200
