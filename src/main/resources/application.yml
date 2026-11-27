@@ -15,10 +15,6 @@ spring:
       max-request-size: 12MB
   thymeleaf:
     cache: true
-  mail:
-    # Empty by default; set MAIL_HOST (e.g. mailpit locally) to enable outbound email.
-    host: ${MAIL_HOST:}
-    port: ${MAIL_PORT:1025}
 jwt:
   secret: ${JWT_SECRET:}
   expiration: ${JWT_EXPIRATION:900000}
@@ -38,6 +34,10 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    mail:
+      # Email is best-effort by design; SMTP connectivity must not flip app health.
+      enabled: false
   info:
     env:
       enabled: true
