@@ -238,6 +238,22 @@ public class TicketService {
         return users.findByUsername(username).orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
+    /** Authors may edit their own comment; the fifteen-minute window is enforced authoritatively here. */
+    @Transactional
+    public TicketComment editOwnComment(Long ticketId, Long commentId, String username, String content) {
+        if (content == null || content.isBlank()) throw new IllegalArgumentException("Comment cannot be empty");
+        if (content.length() > 5000) throw new IllegalArgumentException("Comment cannot exceed 5000 characters");
+        TicketComment comment = comments
+                .findByIdAndTicketIdAndAuthorUsername(commentId, ticketId, username)
+                .orElseThrow(() -> new ResourceNotFoundException("Comment not found"));
+        if (!comment.editableBy(findUser(username))) {
+            throw new AccessDeniedException("Comments can only be edited for 15 minutes after posting.");
+        }
+        comment.setContent(content.trim());
+        comment.markEdited(LocalDateTime.now(ZoneOffset.UTC));
+        return comments.save(comment);
+    }
+
     @Transactional
     @CacheEvict(
             cacheNames = {"ticketCounts", "dashboardCounters"},
