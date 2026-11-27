@@ -1,6 +1,6 @@
 # IT Helpdesk & Asset Management System
 
-An educational portfolio project: a containerized Spring Boot IT help desk and asset management application. It is a single deployable application, not a microservice system, using Java 17, Spring Boot, Thymeleaf, Spring Data JPA, MySQL, Flyway, Redis, Spring Security, and BCrypt.
+An educational portfolio project: a containerized Spring Boot IT help desk and asset management application. It is a single deployable application, not a microservice system, using Java 21, Spring Boot 3.5, Thymeleaf, Spring Data JPA, MySQL, Flyway, Redis, Spring Security, and BCrypt. Project history lives in [CHANGELOG.md](CHANGELOG.md).
 
 ## Quick Start
 
@@ -133,6 +133,8 @@ Run the Maven suite:
 mvn verify
 ~~~
 
+Requires JDK 21 (the build targets Java 21).
+
 Run the Selenium browser workflow locally (requires Chrome/Chromium):
 
 ~~~bash
@@ -162,6 +164,7 @@ Local and demo profiles use an in-memory login throttle that resets on restart. 
 ## Known Limitations
 
 - No AWS or other hosted deployment is configured; CI builds the image but does not publish or deploy it.
+- Browser sessions are in-JVM; scaling to multiple instances requires session externalization or sticky sessions (the SLA sweep is already ShedLock-guarded).
 - JWT revocation lists are not implemented; access tokens expire quickly by default, refresh tokens rotate on use, and disabling an account immediately rejects both token types.
 - Local login throttling is in-memory and does not coordinate across replicas; the production profile defaults to the Redis-backed shared store.
 - Password recovery is not implemented (accounts have an optional email address, but no reset flow yet).

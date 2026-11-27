@@ -12,7 +12,7 @@ cleanup() {
 trap cleanup EXIT
 
 mvn -q -DskipTests package
-java -jar target/it-helpdesk-0.0.1-SNAPSHOT.jar --spring.profiles.active=benchmark --server.port="$port" >"$log" 2>&1 &
+java -jar target/it-helpdesk-0.1.0.jar --spring.profiles.active=benchmark --server.port="$port" >"$log" 2>&1 &
 app_pid=$!
 for attempt in $(seq 1 60); do
   if curl --fail --silent "$url/actuator/health" >/dev/null; then break; fi
