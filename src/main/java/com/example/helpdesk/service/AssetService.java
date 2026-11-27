@@ -9,10 +9,12 @@ import com.example.helpdesk.model.AssetStatus;
 import com.example.helpdesk.model.Role;
 import com.example.helpdesk.model.User;
 import com.example.helpdesk.repo.AssetRepository;
+import com.example.helpdesk.repo.AssetSpecifications;
 import com.example.helpdesk.repo.UserRepository;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AssetService {
+
     private final AssetRepository repo;
     private final UserRepository users;
     private final BusinessMetrics businessMetrics;
@@ -32,24 +35,9 @@ public class AssetService {
         this.businessMetrics = businessMetrics;
     }
 
-    public AssetService(AssetRepository repo, UserRepository users) {
-        this(repo, users, null);
-    }
-
-    public List<Asset> all(String q) {
-        return filter(q, null, null);
-    }
-
-    public List<Asset> filter(String q, AssetStatus status, String category) {
-        String cleanQ = (q != null && !q.isBlank()) ? q.trim() : null;
-        String cleanCat = (category != null && !category.isBlank()) ? category.trim() : null;
-        return repo.searchAssets(cleanQ, status, cleanCat);
-    }
-
     public Page<Asset> filterPage(String q, AssetStatus status, String category, Pageable pageable) {
-        String cleanQ = (q != null && !q.isBlank()) ? q.trim() : null;
-        String cleanCat = (category != null && !category.isBlank()) ? category.trim() : null;
-        return repo.pageAssets(cleanQ, status, cleanCat, pageable);
+        return repo.findAll(
+                AssetSpecifications.withFilters(clean(q), status, clean(category)), pageable);
     }
 
     public List<String> categories() {
@@ -61,128 +49,65 @@ public class AssetService {
     }
 
     @Transactional
-    public Asset save(Asset a) {
-        boolean creating = a.getId() == null;
-        if (a.getAssetTag() == null || a.getAssetTag().isBlank()) {
-            throw new IllegalArgumentException("Asset tag is required");
-        }
-        if (a.getId() == null) {
-            if (repo.existsByAssetTag(a.getAssetTag())) {
-                throw new IllegalArgumentException("Asset tag already exists: " + a.getAssetTag());
-            }
-        } else {
-            if (repo.existsByAssetTagAndIdNot(a.getAssetTag(), a.getId())) {
-                throw new IllegalArgumentException("Asset tag already exists: " + a.getAssetTag());
-            }
-        }
-        if (a.getStatus() == null) {
-            a.setStatus(AssetStatus.AVAILABLE);
-        }
-        if (a.getStatus() == AssetStatus.RETIRED && a.getAssignedUser() != null) {
-            throw new IllegalArgumentException("Retired assets cannot be assigned");
-        }
-        if (a.getStatus() == AssetStatus.ASSIGNED && a.getAssignedUser() == null) {
-            throw new IllegalArgumentException("Assigned assets must have an employee");
-        }
-        if (a.getStatus() == AssetStatus.AVAILABLE && a.getAssignedUser() != null) {
-            a.setStatus(AssetStatus.ASSIGNED);
-        }
-        Asset saved = repo.save(a);
-        if (creating) {
-            if (businessMetrics != null) businessMetrics.incrementAssetCreated();
-        }
-        return saved;
-    }
-
-    @Transactional
     public Asset create(AssetForm form) {
         validate(form);
         String cleanTag = form.getAssetTag().trim();
-        if (repo.existsByAssetTag(cleanTag))
-            throw new IllegalArgumentException("Asset tag already exists: " + cleanTag);
+        if (repo.existsByAssetTag(cleanTag)) throw new IllegalArgumentException("Asset tag already exists: " + cleanTag);
 
         Asset asset = new Asset();
         form.updateAsset(asset);
         asset.setAssetTag(cleanTag);
-
-        if (form.getAssignedUserId() != null) {
-            if (form.getStatus() == AssetStatus.RETIRED) {
-                throw new IllegalArgumentException("Retired assets cannot be assigned");
-            }
-            if (users != null) {
-                User user = users.findById(form.getAssignedUserId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Assigned user not found"));
-                if (user.getRole() != Role.EMPLOYEE)
-                    throw new IllegalArgumentException("Assets can only be assigned to employees");
-                asset.setAssignedUser(user);
-                if (asset.getStatus() == AssetStatus.AVAILABLE) {
-                    asset.setStatus(AssetStatus.ASSIGNED);
-                }
-            }
-        } else {
-            asset.setAssignedUser(null);
-            if (asset.getStatus() == AssetStatus.ASSIGNED) {
-                asset.setStatus(AssetStatus.AVAILABLE);
-            }
-        }
-
-        Asset saved = repo.save(asset);
-        if (businessMetrics != null) businessMetrics.incrementAssetCreated();
-        return saved;
+        applyAssignment(asset, form.getAssignedUserId());
+        assertAssignmentConsistency(asset);
+        return persist(asset);
     }
 
     @Transactional
     public Asset update(Long id, AssetForm form) {
         Asset existing = get(id);
-        if (form.getVersion() == null || !form.getVersion().equals(existing.getVersion())) {
+        if (form.getVersion() == null || !Objects.equals(form.getVersion(), existing.getVersion())) {
             throw new AssetEditConflictException();
         }
         validate(form);
 
-        String newTag = form.getAssetTag() != null ? form.getAssetTag().trim() : "";
-        if (newTag.isBlank()) {
-            throw new IllegalArgumentException("Asset tag is required");
-        }
+        String newTag = form.getAssetTag() == null ? "" : form.getAssetTag().trim();
+        if (newTag.isBlank()) throw new IllegalArgumentException("Asset tag is required");
         if (repo.existsByAssetTagAndIdNot(newTag, id)) {
             throw new IllegalArgumentException("Asset tag already exists: " + newTag);
         }
-
         if (form.getStatus() == AssetStatus.RETIRED && form.getAssignedUserId() != null) {
             throw new IllegalArgumentException("Retired assets cannot be assigned");
         }
 
         form.updateAsset(existing);
         existing.setAssetTag(newTag);
-
-        if (form.getAssignedUserId() != null) {
-            if (users != null) {
-                User user = users.findById(form.getAssignedUserId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Assigned user not found"));
-                if (user.getRole() != Role.EMPLOYEE)
-                    throw new IllegalArgumentException("Assets can only be assigned to employees");
-                existing.setAssignedUser(user);
-                if (existing.getStatus() == AssetStatus.AVAILABLE) {
-                    existing.setStatus(AssetStatus.ASSIGNED);
-                }
-            }
-        } else {
-            existing.setAssignedUser(null);
-            if (existing.getStatus() == AssetStatus.ASSIGNED) {
-                existing.setStatus(AssetStatus.AVAILABLE);
-            }
-        }
-
+        applyAssignment(existing, form.getAssignedUserId());
+        assertAssignmentConsistency(existing);
         existing.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
-        return repo.save(existing);
+        return persist(existing);
     }
 
     @Transactional
-    public void unassign(Long id) {
-        unassign(id, get(id).getVersion());
+    public Asset assign(Long id, Long userId, Long expectedVersion) {
+        Asset existing = get(id);
+        assertExpectedVersion(existing, expectedVersion);
+        User user = users.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (user.getRole() != Role.EMPLOYEE) throw new IllegalArgumentException("Assets can only be assigned to employees");
+        if (existing.getStatus() == AssetStatus.RETIRED) {
+            throw new IllegalArgumentException("Retired assets cannot be assigned");
+        }
+        existing.setAssignedUser(user);
+        if (existing.getStatus() == AssetStatus.AVAILABLE) {
+            existing.setStatus(AssetStatus.ASSIGNED);
+        }
+        existing.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
+        Asset saved = persist(existing);
+        if (businessMetrics != null) businessMetrics.incrementAssetAssigned();
+        return saved;
     }
 
     @Transactional
-    public void unassign(Long id, Long expectedVersion) {
+    public Asset unassign(Long id, Long expectedVersion) {
         Asset existing = get(id);
         assertExpectedVersion(existing, expectedVersion);
         existing.setAssignedUser(null);
@@ -190,57 +115,58 @@ public class AssetService {
             existing.setStatus(AssetStatus.AVAILABLE);
         }
         existing.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
-        repo.save(existing);
+        return persist(existing);
+    }
+
+    @Transactional
+    public void delete(Long id, Long expectedVersion) {
+        Asset existing = get(id);
+        assertExpectedVersion(existing, expectedVersion);
+        repo.delete(existing);
     }
 
     public long count() {
         return repo.count();
     }
 
-    private void validate(AssetForm form) {
-        if (form.getAssetTag() == null || form.getAssetTag().isBlank())
+    private Asset persist(Asset asset) {
+        if (asset.getAssetTag() == null || asset.getAssetTag().isBlank()) {
             throw new IllegalArgumentException("Asset tag is required");
-        if (form.getName() == null || form.getName().isBlank())
-            throw new IllegalArgumentException("Equipment name is required");
-        if (form.getCategory() == null || form.getCategory().isBlank())
-            throw new IllegalArgumentException("Category is required");
-        if (form.getStatus() == null) throw new IllegalArgumentException("Status is required");
-        if (form.getStatus() == AssetStatus.RETIRED && form.getAssignedUserId() != null) {
+        }
+        if (asset.getStatus() == null) asset.setStatus(AssetStatus.AVAILABLE);
+        if (asset.getStatus() == AssetStatus.RETIRED && asset.getAssignedUser() != null) {
             throw new IllegalArgumentException("Retired assets cannot be assigned");
         }
+        if (asset.getStatus() == AssetStatus.ASSIGNED && asset.getAssignedUser() == null) {
+            throw new IllegalArgumentException("Assigned assets must have an employee");
+        }
+        if (asset.getStatus() == AssetStatus.AVAILABLE && asset.getAssignedUser() != null) {
+            asset.setStatus(AssetStatus.ASSIGNED);
+        }
+        boolean creating = asset.getId() == null;
+        Asset saved = repo.save(asset);
+        if (creating && businessMetrics != null) businessMetrics.incrementAssetCreated();
+        return saved;
     }
 
-    @Transactional(readOnly = true)
-    public Page<Asset> getAllAssetsPaginated(Pageable pageable) {
-        return repo.findAll(pageable);
+    private void applyAssignment(Asset asset, Long assignedUserId) {
+        if (assignedUserId == null) {
+            asset.setAssignedUser(null);
+            return;
+        }
+        if (asset.getStatus() == AssetStatus.RETIRED) {
+            throw new IllegalArgumentException("Retired assets cannot be assigned");
+        }
+        User user =
+                users.findById(assignedUserId).orElseThrow(() -> new ResourceNotFoundException("Assigned user not found"));
+        if (user.getRole() != Role.EMPLOYEE) throw new IllegalArgumentException("Assets can only be assigned to employees");
+        asset.setAssignedUser(user);
     }
 
-    public Asset getAssetById(Long id) {
-        return get(id);
-    }
-
-    public Asset createAsset(Asset asset) {
-        return save(asset);
-    }
-
-    public Asset updateAsset(Long id, Asset asset) {
-        return updateAsset(id, asset, get(id).getVersion());
-    }
-
-    @Transactional
-    public Asset updateAsset(Long id, Asset asset, Long expectedVersion) {
-        Asset existing = get(id);
-        assertExpectedVersion(existing, expectedVersion);
-        existing.setAssetTag(asset.getAssetTag());
-        existing.setName(asset.getName());
-        existing.setCategory(asset.getCategory());
-        existing.setManufacturer(asset.getManufacturer());
-        existing.setSerialNumber(asset.getSerialNumber());
-        existing.setPurchaseDate(asset.getPurchaseDate());
-        existing.setNotes(asset.getNotes());
-        existing.setStatus(asset.getStatus());
-        existing.setUpdatedAt(LocalDateTime.now());
-        return save(existing);
+    private void assertAssignmentConsistency(Asset asset) {
+        if (asset.getStatus() == AssetStatus.ASSIGNED && asset.getAssignedUser() == null) {
+            throw new IllegalArgumentException("Assigned assets must have an employee");
+        }
     }
 
     private void assertExpectedVersion(Asset existing, Long expectedVersion) {
@@ -249,47 +175,23 @@ public class AssetService {
         }
     }
 
-    public Asset assignAsset(Long id, Long userId) {
-        return assignAsset(id, userId, get(id).getVersion());
-    }
-
-    @Transactional
-    public Asset assignAsset(Long id, Long userId, Long expectedVersion) {
-        Asset existing = get(id);
-        assertExpectedVersion(existing, expectedVersion);
-        User user = users.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        if (user.getRole() != Role.EMPLOYEE)
-            throw new IllegalArgumentException("Assets can only be assigned to employees");
-        if (existing.getStatus() == AssetStatus.RETIRED)
-            throw new IllegalArgumentException("Retired assets cannot be assigned");
-        existing.setAssignedUser(user);
-        if (existing.getStatus() == AssetStatus.AVAILABLE) {
-            existing.setStatus(AssetStatus.ASSIGNED);
+    private void validate(AssetForm form) {
+        if (form.getAssetTag() == null || form.getAssetTag().isBlank()) {
+            throw new IllegalArgumentException("Asset tag is required");
         }
-        existing.setUpdatedAt(LocalDateTime.now());
-        Asset saved = repo.save(existing);
-        if (businessMetrics != null) businessMetrics.incrementAssetAssigned();
-        return saved;
+        if (form.getName() == null || form.getName().isBlank()) {
+            throw new IllegalArgumentException("Equipment name is required");
+        }
+        if (form.getCategory() == null || form.getCategory().isBlank()) {
+            throw new IllegalArgumentException("Category is required");
+        }
+        if (form.getStatus() == null) throw new IllegalArgumentException("Status is required");
+        if (form.getStatus() == AssetStatus.RETIRED && form.getAssignedUserId() != null) {
+            throw new IllegalArgumentException("Retired assets cannot be assigned");
+        }
     }
 
-    public Asset unassignAsset(Long id) {
-        return unassignAsset(id, get(id).getVersion());
-    }
-
-    @Transactional
-    public Asset unassignAsset(Long id, Long expectedVersion) {
-        unassign(id, expectedVersion);
-        return get(id);
-    }
-
-    public void deleteAsset(Long id) {
-        deleteAsset(id, get(id).getVersion());
-    }
-
-    @Transactional
-    public void deleteAsset(Long id, Long expectedVersion) {
-        Asset existing = get(id);
-        assertExpectedVersion(existing, expectedVersion);
-        repo.delete(existing);
+    private String clean(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

@@ -2,6 +2,7 @@ package com.example.helpdesk.api;
 
 import com.example.helpdesk.api.dto.AssetDto;
 import com.example.helpdesk.api.dto.PageResponse;
+import com.example.helpdesk.dto.AssetForm;
 import com.example.helpdesk.model.Asset;
 import com.example.helpdesk.service.AssetService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,26 +44,12 @@ public class AssetApiController {
             @Parameter(description = "Sort field") @RequestParam(defaultValue = "updatedAt") String sortBy,
             @Parameter(description = "Sort direction") @RequestParam(defaultValue = "desc") String sortDir) {
 
-        if (page < 0
-                || size < 1
-                || size > MAX_PAGE_SIZE
-                || !SORT_FIELDS.contains(sortBy)
-                || !("asc".equalsIgnoreCase(sortDir) || "desc".equalsIgnoreCase(sortDir))) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Invalid pagination or sorting parameters");
-        }
-        Sort sort = "asc".equalsIgnoreCase(sortDir)
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
-        Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Asset> assets = assetService.getAllAssetsPaginated(pageable);
-
+        Pageable pageable = apiPageable(page, size, sortBy, sortDir);
+        Page<Asset> assets = assetService.filterPage(null, null, null, pageable);
         List<AssetDto> assetDtos =
                 assets.getContent().stream().map(this::convertToDto).collect(Collectors.toList());
-
         PageResponse<AssetDto> response = new PageResponse<>(
                 assetDtos, assets.getNumber(), assets.getTotalPages(), assets.getTotalElements(), assets.getSize());
-
         return ResponseEntity.ok(response);
     }
 
@@ -70,16 +57,14 @@ public class AssetApiController {
     @Operation(summary = "Get asset by ID")
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<AssetDto> getAssetById(@PathVariable Long id) {
-        Asset asset = assetService.getAssetById(id);
-        return ResponseEntity.ok(convertToDto(asset));
+        return ResponseEntity.ok(convertToDto(assetService.get(id)));
     }
 
     @PostMapping
     @Operation(summary = "Create a new asset")
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<AssetDto> createAsset(@Valid @RequestBody AssetDto assetDto) {
-        Asset asset = convertToEntity(assetDto);
-        Asset created = assetService.createAsset(asset);
+        Asset created = assetService.create(toForm(assetDto));
         return ResponseEntity.status(HttpStatus.CREATED).body(convertToDto(created));
     }
 
@@ -92,8 +77,9 @@ public class AssetApiController {
                     HttpStatus.PRECONDITION_REQUIRED,
                     "Asset version is required. Reload the asset and include its version when updating.");
         }
-        Asset asset = convertToEntity(assetDto);
-        Asset updated = assetService.updateAsset(id, asset, assetDto.getVersion());
+        AssetForm form = toForm(assetDto);
+        form.setVersion(assetDto.getVersion());
+        Asset updated = assetService.update(id, form);
         return ResponseEntity.ok(convertToDto(updated));
     }
 
@@ -102,24 +88,50 @@ public class AssetApiController {
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<AssetDto> assignAsset(
             @PathVariable Long id, @RequestParam Long userId, @RequestParam Long version) {
-        Asset updated = assetService.assignAsset(id, userId, version);
-        return ResponseEntity.ok(convertToDto(updated));
+        return ResponseEntity.ok(convertToDto(assetService.assign(id, userId, version)));
     }
 
     @PatchMapping("/{id}/unassign")
     @Operation(summary = "Unassign asset")
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<AssetDto> unassignAsset(@PathVariable Long id, @RequestParam Long version) {
-        Asset updated = assetService.unassignAsset(id, version);
-        return ResponseEntity.ok(convertToDto(updated));
+        return ResponseEntity.ok(convertToDto(assetService.unassign(id, version)));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete an asset")
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<Void> deleteAsset(@PathVariable Long id, @RequestParam Long version) {
-        assetService.deleteAsset(id, version);
+        assetService.delete(id, version);
         return ResponseEntity.noContent().build();
+    }
+
+    private Pageable apiPageable(int page, int size, String sortBy, String sortDir) {
+        if (page < 0
+                || size < 1
+                || size > MAX_PAGE_SIZE
+                || !SORT_FIELDS.contains(sortBy)
+                || !("asc".equalsIgnoreCase(sortDir) || "desc".equalsIgnoreCase(sortDir))) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Invalid pagination or sorting parameters");
+        }
+        Sort sort = "asc".equalsIgnoreCase(sortDir)
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        return PageRequest.of(page, size, sort);
+    }
+
+    private AssetForm toForm(AssetDto dto) {
+        AssetForm form = new AssetForm();
+        form.setAssetTag(dto.getAssetTag());
+        form.setName(dto.getModelName());
+        form.setCategory(dto.getCategory());
+        form.setManufacturer(dto.getManufacturer());
+        form.setSerialNumber(dto.getSerialNumber());
+        form.setPurchaseDate(dto.getPurchaseDate());
+        form.setNotes(dto.getNotes());
+        form.setStatus(dto.getStatus());
+        return form;
     }
 
     private AssetDto convertToDto(Asset asset) {
@@ -138,18 +150,5 @@ public class AssetApiController {
             dto.setAssignedUserName(asset.getAssignedUser().getFullName());
         }
         return dto;
-    }
-
-    private Asset convertToEntity(AssetDto dto) {
-        Asset asset = new Asset();
-        asset.setAssetTag(dto.getAssetTag());
-        asset.setName(dto.getModelName());
-        asset.setCategory(dto.getCategory());
-        asset.setManufacturer(dto.getManufacturer());
-        asset.setSerialNumber(dto.getSerialNumber());
-        asset.setPurchaseDate(dto.getPurchaseDate());
-        asset.setNotes(dto.getNotes());
-        asset.setStatus(dto.getStatus());
-        return asset;
     }
 }

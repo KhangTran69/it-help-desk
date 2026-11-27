@@ -44,7 +44,14 @@ class TicketServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new TicketService(tickets, users, history);
+        service = new TicketService(
+                tickets,
+                users,
+                history,
+                null,
+                null,
+                null,
+                new SlaPolicy(Clock.systemUTC(), 1209600, 259200, 86400));
 
         employeeAlice = new User("alice", "pass", "Alice Adams", Role.EMPLOYEE);
         employeeAlice.setId(101L);
@@ -77,10 +84,9 @@ class TicketServiceTest {
 
     @Test
     void resolvedTicketRequiresNotes() {
-        Ticket ticket = new Ticket();
-        assertThrows(IllegalArgumentException.class, () -> service.updateStatus(1L, TicketStatus.RESOLVED, "", "tech"));
+        assertThrows(IllegalArgumentException.class, () -> service.updateStatus(1L, TicketStatus.RESOLVED, "", "tech", 0L));
         assertThrows(
-                IllegalArgumentException.class, () -> service.updateStatus(1L, TicketStatus.CLOSED, "   ", "tech"));
+                IllegalArgumentException.class, () -> service.updateStatus(1L, TicketStatus.CLOSED, "   ", "tech", 0L));
     }
 
     @Test
@@ -88,8 +94,47 @@ class TicketServiceTest {
         when(users.findByUsername("alice")).thenReturn(Optional.of(employeeAlice));
 
         assertThrows(
-                AccessDeniedException.class, () -> service.updateStatus(1L, TicketStatus.IN_PROGRESS, null, "alice"));
-        assertThrows(AccessDeniedException.class, () -> service.assign(1L, technicianCharlie.getId(), "alice"));
+                AccessDeniedException.class, () -> service.updateStatus(1L, TicketStatus.IN_PROGRESS, null, "alice", 0L));
+        assertThrows(AccessDeniedException.class, () -> service.assign(1L, technicianCharlie.getId(), "alice", 0L));
+        verify(tickets, never()).save(any());
+    }
+
+    @Test
+    void openTicketCannotJumpStraightToClosed() {
+        Ticket existing = new Ticket();
+        existing.setId(11L);
+        existing.setStatus(TicketStatus.OPEN);
+        when(users.findByUsername("charlie")).thenReturn(Optional.of(technicianCharlie));
+        when(tickets.findById(11L)).thenReturn(Optional.of(existing));
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.updateStatus(11L, TicketStatus.CLOSED, "Skipping resolution", "charlie", 0L));
+
+        assertTrue(ex.getMessage().contains("OPEN"));
+        assertTrue(ex.getMessage().contains("CLOSED"));
+        verify(tickets, never()).save(any());
+    }
+
+    @Test
+    void allowedNextStatusesFollowTheStateMachine() {
+        assertEquals(java.util.Set.of(TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED), service.allowedNextStatuses(TicketStatus.OPEN));
+        assertEquals(java.util.Set.of(TicketStatus.OPEN, TicketStatus.CLOSED), service.allowedNextStatuses(TicketStatus.RESOLVED));
+        assertTrue(service.allowedNextStatuses(TicketStatus.CLOSED).contains(TicketStatus.OPEN));
+        assertTrue(service.allowedNextStatuses(null).isEmpty());
+    }
+
+    @Test
+    void statusChangeWithMissingVersionIsRejected() {
+        Ticket existing = new Ticket();
+        existing.setId(12L);
+        existing.setStatus(TicketStatus.OPEN);
+        when(users.findByUsername("charlie")).thenReturn(Optional.of(technicianCharlie));
+        when(tickets.findById(12L)).thenReturn(Optional.of(existing));
+
+        assertThrows(
+                TicketEditConflictException.class,
+                () -> service.updateStatus(12L, TicketStatus.IN_PROGRESS, null, "charlie", null));
         verify(tickets, never()).save(any());
     }
 
@@ -103,7 +148,7 @@ class TicketServiceTest {
         when(users.findById(employeeAlice.getId())).thenReturn(Optional.of(employeeAlice));
 
         IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class, () -> service.assign(9L, employeeAlice.getId(), "charlie"));
+                IllegalArgumentException.class, () -> service.assign(9L, employeeAlice.getId(), "charlie", 0L));
 
         assertEquals("Assignee must be a technician", ex.getMessage());
         verify(tickets, never()).save(any());
@@ -144,7 +189,7 @@ class TicketServiceTest {
         when(users.findById(newTechnician.getId())).thenReturn(Optional.of(newTechnician));
         when(tickets.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        notificationAwareService.assign(9L, newTechnician.getId(), "charlie");
+        notificationAwareService.assign(9L, newTechnician.getId(), "charlie", 0L);
 
         ArgumentCaptor<TicketNotification> captured = ArgumentCaptor.forClass(TicketNotification.class);
         verify(notifications, times(2)).save(captured.capture());
@@ -167,11 +212,11 @@ class TicketServiceTest {
         when(users.findByUsername("charlie")).thenReturn(Optional.of(technicianCharlie));
         when(tickets.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.updateStatus(10L, TicketStatus.RESOLVED, "Adapter replaced", "charlie");
+        service.updateStatus(10L, TicketStatus.RESOLVED, "Adapter replaced", "charlie", 0L);
         assertEquals(TicketStatus.RESOLVED, existing.getStatus());
         assertEquals("Adapter replaced", existing.getResolutionNotes());
 
-        service.updateStatus(10L, TicketStatus.OPEN, null, "charlie");
+        service.updateStatus(10L, TicketStatus.OPEN, null, "charlie", 0L);
         assertEquals(TicketStatus.OPEN, existing.getStatus());
     }
 
