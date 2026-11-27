@@ -1,17 +1,18 @@
 package com.example.helpdesk.api;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import com.example.helpdesk.api.dto.AssetDto;
 import com.example.helpdesk.dto.AssetForm;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 class AssetDtoValidationTest {
 
-    private static final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+    private static final Validator validator =
+            Validation.buildDefaultValidatorFactory().getValidator();
 
     @Test
     void assetDtoLimitsMatchDatabaseColumns() {
@@ -32,9 +33,11 @@ class AssetDtoValidationTest {
     }
 
     private static void assertMaxLength(Class<?> type, String property, int max) {
-        assertTrue(validator.validateValue(type, property, "x".repeat(max)).isEmpty(),
+        assertTrue(
+                validator.validateValue(type, property, "x".repeat(max)).isEmpty(),
                 property + " should accept its database maximum of " + max);
-        assertFalse(validator.validateValue(type, property, "x".repeat(max + 1)).isEmpty(),
+        assertFalse(
+                validator.validateValue(type, property, "x".repeat(max + 1)).isEmpty(),
                 property + " should reject values longer than " + max);
     }
 }

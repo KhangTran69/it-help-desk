@@ -15,17 +15,29 @@ public class CacheFailureConfig {
     @Bean
     CacheErrorHandler cacheErrorHandler() {
         return new CacheErrorHandler() {
-            @Override public void handleCacheGetError(RuntimeException exception, Cache cache, Object key) {
-                log.warn("Cache read failed for {}:{}; continuing without cached data", cache.getName(), key, exception);
+            @Override
+            public void handleCacheGetError(RuntimeException exception, Cache cache, Object key) {
+                log.warn(
+                        "Cache read failed for {}:{}; continuing without cached data", cache.getName(), key, exception);
             }
-            @Override public void handleCachePutError(RuntimeException exception, Cache cache, Object key, Object value) {
+
+            @Override
+            public void handleCachePutError(RuntimeException exception, Cache cache, Object key, Object value) {
                 log.warn("Cache write failed for {}; continuing without cache", cache.getName(), exception);
             }
-            @Override public void handleCacheEvictError(RuntimeException exception, Cache cache, Object key) {
-                log.warn("Cache eviction failed for {}; cached value may remain until expiry", cache.getName(), exception);
+
+            @Override
+            public void handleCacheEvictError(RuntimeException exception, Cache cache, Object key) {
+                log.warn(
+                        "Cache eviction failed for {}; cached value may remain until expiry",
+                        cache.getName(),
+                        exception);
             }
-            @Override public void handleCacheClearError(RuntimeException exception, Cache cache) {
-                log.warn("Cache clear failed for {}; cached values may remain until expiry", cache.getName(), exception);
+
+            @Override
+            public void handleCacheClearError(RuntimeException exception, Cache cache) {
+                log.warn(
+                        "Cache clear failed for {}; cached values may remain until expiry", cache.getName(), exception);
             }
         };
     }

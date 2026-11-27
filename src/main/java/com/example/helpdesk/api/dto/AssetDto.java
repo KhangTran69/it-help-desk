@@ -3,51 +3,121 @@ package com.example.helpdesk.api.dto;
 import com.example.helpdesk.model.AssetStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-
 import java.time.LocalDate;
 
 public class AssetDto {
     private Long id;
     private Long version;
+
     @NotBlank(message = "Asset tag is required")
     @Size(min = 3, max = 30, message = "Asset tag must be between 3 and 30 characters")
     private String assetTag;
+
     @NotBlank(message = "Model name is required")
     @Size(min = 3, max = 120, message = "Model name must be between 3 and 120 characters")
     private String modelName;
+
     @NotBlank(message = "Category is required")
     @Size(max = 50, message = "Category cannot exceed 50 characters")
     private String category;
+
     @Size(max = 100, message = "Manufacturer cannot exceed 100 characters")
     private String manufacturer;
+
     @Size(max = 100, message = "Serial number cannot exceed 100 characters")
     private String serialNumber;
+
     private LocalDate purchaseDate;
     private String notes;
     private AssetStatus status;
     private String assignedUserName;
 
     // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
-    public String getAssetTag() { return assetTag; }
-    public void setAssetTag(String assetTag) { this.assetTag = assetTag; }
-    public String getModelName() { return modelName; }
-    public void setModelName(String modelName) { this.modelName = modelName; }
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
-    public String getManufacturer() { return manufacturer; }
-    public void setManufacturer(String manufacturer) { this.manufacturer = manufacturer; }
-    public String getSerialNumber() { return serialNumber; }
-    public void setSerialNumber(String serialNumber) { this.serialNumber = serialNumber; }
-    public LocalDate getPurchaseDate() { return purchaseDate; }
-    public void setPurchaseDate(LocalDate purchaseDate) { this.purchaseDate = purchaseDate; }
-    public String getNotes() { return notes; }
-    public void setNotes(String notes) { this.notes = notes; }
-    public AssetStatus getStatus() { return status; }
-    public void setStatus(AssetStatus status) { this.status = status; }
-    public String getAssignedUserName() { return assignedUserName; }
-    public void setAssignedUserName(String assignedUserName) { this.assignedUserName = assignedUserName; }
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    public String getAssetTag() {
+        return assetTag;
+    }
+
+    public void setAssetTag(String assetTag) {
+        this.assetTag = assetTag;
+    }
+
+    public String getModelName() {
+        return modelName;
+    }
+
+    public void setModelName(String modelName) {
+        this.modelName = modelName;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getManufacturer() {
+        return manufacturer;
+    }
+
+    public void setManufacturer(String manufacturer) {
+        this.manufacturer = manufacturer;
+    }
+
+    public String getSerialNumber() {
+        return serialNumber;
+    }
+
+    public void setSerialNumber(String serialNumber) {
+        this.serialNumber = serialNumber;
+    }
+
+    public LocalDate getPurchaseDate() {
+        return purchaseDate;
+    }
+
+    public void setPurchaseDate(LocalDate purchaseDate) {
+        this.purchaseDate = purchaseDate;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
+
+    public AssetStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(AssetStatus status) {
+        this.status = status;
+    }
+
+    public String getAssignedUserName() {
+        return assignedUserName;
+    }
+
+    public void setAssignedUserName(String assignedUserName) {
+        this.assignedUserName = assignedUserName;
+    }
 }

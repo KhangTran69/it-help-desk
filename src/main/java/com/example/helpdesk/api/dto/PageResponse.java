@@ -18,9 +18,23 @@ public class PageResponse<T> {
     }
 
     // Getters
-    public List<T> getContent() { return content; }
-    public int getCurrentPage() { return currentPage; }
-    public int getTotalPages() { return totalPages; }
-    public long getTotalElements() { return totalElements; }
-    public int getPageSize() { return pageSize; }
+    public List<T> getContent() {
+        return content;
+    }
+
+    public int getCurrentPage() {
+        return currentPage;
+    }
+
+    public int getTotalPages() {
+        return totalPages;
+    }
+
+    public long getTotalElements() {
+        return totalElements;
+    }
+
+    public int getPageSize() {
+        return pageSize;
+    }
 }

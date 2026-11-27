@@ -7,10 +7,9 @@ import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.List;
 
 @Configuration
 public class OpenApiConfig {
@@ -22,19 +21,15 @@ public class OpenApiConfig {
                         .title("IT Help Desk API")
                         .description("Enterprise-grade IT Help Desk and Asset Management System API")
                         .version("1.0.0")
-                        .contact(new Contact()
-                                .name("IT Help Desk Team")
-                                .email("support@helpdesk.com"))
-                        .license(new License()
-                                .name("MIT License")
-                                .url("https://opensource.org/licenses/MIT")))
+                        .contact(new Contact().name("IT Help Desk Team").email("support@helpdesk.com"))
+                        .license(new License().name("MIT License").url("https://opensource.org/licenses/MIT")))
                 .servers(List.of(
                         new Server().url("http://localhost:8080").description("Development Server"),
-                        new Server().url("https://api.helpdesk.com").description("Production Server")
-                ))
+                        new Server().url("https://api.helpdesk.com").description("Production Server")))
                 .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
                 .components(new io.swagger.v3.oas.models.Components()
-                        .addSecuritySchemes("Bearer Authentication",
+                        .addSecuritySchemes(
+                                "Bearer Authentication",
                                 new SecurityScheme()
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")

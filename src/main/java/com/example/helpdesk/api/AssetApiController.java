@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -17,16 +19,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 @RestController
 @RequestMapping("/api/assets")
 @Tag(name = "Assets", description = "Asset management API endpoints")
 public class AssetApiController {
 
     private static final int MAX_PAGE_SIZE = 100;
-    private static final java.util.Set<String> SORT_FIELDS = java.util.Set.of("id", "assetTag", "name", "category", "status", "purchaseDate", "updatedAt");
+    private static final java.util.Set<String> SORT_FIELDS =
+            java.util.Set.of("id", "assetTag", "name", "category", "status", "purchaseDate", "updatedAt");
 
     private final AssetService assetService;
 
@@ -43,26 +43,25 @@ public class AssetApiController {
             @Parameter(description = "Sort field") @RequestParam(defaultValue = "updatedAt") String sortBy,
             @Parameter(description = "Sort direction") @RequestParam(defaultValue = "desc") String sortDir) {
 
-        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE || !SORT_FIELDS.contains(sortBy)
+        if (page < 0
+                || size < 1
+                || size > MAX_PAGE_SIZE
+                || !SORT_FIELDS.contains(sortBy)
                 || !("asc".equalsIgnoreCase(sortDir) || "desc".equalsIgnoreCase(sortDir))) {
-            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid pagination or sorting parameters");
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Invalid pagination or sorting parameters");
         }
-        Sort sort = "asc".equalsIgnoreCase(sortDir) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Sort sort = "asc".equalsIgnoreCase(sortDir)
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<Asset> assets = assetService.getAllAssetsPaginated(pageable);
 
-        List<AssetDto> assetDtos = assets.getContent().stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
+        List<AssetDto> assetDtos =
+                assets.getContent().stream().map(this::convertToDto).collect(Collectors.toList());
 
         PageResponse<AssetDto> response = new PageResponse<>(
-                assetDtos,
-                assets.getNumber(),
-                assets.getTotalPages(),
-                assets.getTotalElements(),
-                assets.getSize()
-        );
+                assetDtos, assets.getNumber(), assets.getTotalPages(), assets.getTotalElements(), assets.getSize());
 
         return ResponseEntity.ok(response);
     }
@@ -89,7 +88,8 @@ public class AssetApiController {
     @PreAuthorize("hasRole('TECHNICIAN')")
     public ResponseEntity<AssetDto> updateAsset(@PathVariable Long id, @Valid @RequestBody AssetDto assetDto) {
         if (assetDto.getVersion() == null) {
-            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.PRECONDITION_REQUIRED,
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.PRECONDITION_REQUIRED,
                     "Asset version is required. Reload the asset and include its version when updating.");
         }
         Asset asset = convertToEntity(assetDto);
@@ -100,7 +100,8 @@ public class AssetApiController {
     @PatchMapping("/{id}/assign")
     @Operation(summary = "Assign asset to user")
     @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<AssetDto> assignAsset(@PathVariable Long id, @RequestParam Long userId, @RequestParam Long version) {
+    public ResponseEntity<AssetDto> assignAsset(
+            @PathVariable Long id, @RequestParam Long userId, @RequestParam Long version) {
         Asset updated = assetService.assignAsset(id, userId, version);
         return ResponseEntity.ok(convertToDto(updated));
     }

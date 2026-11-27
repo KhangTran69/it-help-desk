@@ -1,5 +1,12 @@
 package com.example.helpdesk.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.example.helpdesk.exception.ResourceNotFoundException;
 import com.example.helpdesk.model.Role;
 import com.example.helpdesk.model.Ticket;
@@ -8,6 +15,8 @@ import com.example.helpdesk.model.User;
 import com.example.helpdesk.repo.TicketAttachmentRepository;
 import com.example.helpdesk.repo.TicketRepository;
 import com.example.helpdesk.repo.UserRepository;
+import java.io.IOException;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -16,25 +25,18 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class TicketAttachmentServiceTest {
 
     @Mock
     private TicketAttachmentRepository repository;
+
     @Mock
     private TicketRepository tickets;
+
     @Mock
     private UserRepository users;
+
     @InjectMocks
     private TicketAttachmentService service;
 
@@ -50,7 +52,7 @@ class TicketAttachmentServiceTest {
         when(tickets.findById(1L)).thenReturn(Optional.of(ticket));
         when(users.findByUsername("technician")).thenReturn(Optional.of(uploader));
 
-        MultipartFile file = stubbedFile("invoice.pdf", 1234, new byte[]{1, 2});
+        MultipartFile file = stubbedFile("invoice.pdf", 1234, new byte[] {1, 2});
         service.store(1L, file, "technician");
 
         ArgumentCaptor<TicketAttachment> captured = ArgumentCaptor.forClass(TicketAttachment.class);
@@ -81,15 +83,16 @@ class TicketAttachmentServiceTest {
         when(tickets.findById(1L)).thenReturn(Optional.of(new Ticket()));
         when(users.findByUsername("tech")).thenReturn(Optional.of(user("tech", Role.TECHNICIAN)));
 
-        assertThatThrownBy(() -> service.store(1L, stubbedFile("huge.bin", TicketAttachmentService.MAX_SIZE_BYTES + 1, new byte[]{}), "tech"))
+        assertThatThrownBy(() -> service.store(
+                        1L, stubbedFile("huge.bin", TicketAttachmentService.MAX_SIZE_BYTES + 1, new byte[] {}), "tech"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("5 MB");
         verify(repository, never()).save(any());
 
-        assertThatThrownBy(() -> service.store(1L, stubbedFile("virus.exe", 100, new byte[]{}), "tech"))
+        assertThatThrownBy(() -> service.store(1L, stubbedFile("virus.exe", 100, new byte[] {}), "tech"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not allowed");
-        assertThatThrownBy(() -> service.store(1L, stubbedFile("noextension", 10, new byte[]{}), "tech"))
+        assertThatThrownBy(() -> service.store(1L, stubbedFile("noextension", 10, new byte[] {}), "tech"))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(repository, never()).save(any());
     }
@@ -99,8 +102,8 @@ class TicketAttachmentServiceTest {
         Ticket ticket = new Ticket();
         User reporter = user("employee", Role.EMPLOYEE);
         ticket.setReporter(reporter);
-        TicketAttachment attachment = new TicketAttachment(ticket, "note.pdf", "application/pdf", 3,
-                reporter, new byte[]{9});
+        TicketAttachment attachment =
+                new TicketAttachment(ticket, "note.pdf", "application/pdf", 3, reporter, new byte[] {9});
         when(repository.findById(7L)).thenReturn(Optional.of(attachment));
         when(users.findByUsername("employee")).thenReturn(Optional.of(reporter));
 
@@ -113,8 +116,8 @@ class TicketAttachmentServiceTest {
         User reporter = user("employee", Role.EMPLOYEE);
         User stranger = user("stranger", Role.EMPLOYEE);
         ticket.setReporter(reporter);
-        TicketAttachment attachment = new TicketAttachment(ticket, "note.pdf", "application/pdf", 3,
-                reporter, new byte[]{9});
+        TicketAttachment attachment =
+                new TicketAttachment(ticket, "note.pdf", "application/pdf", 3, reporter, new byte[] {9});
         when(repository.findById(7L)).thenReturn(Optional.of(attachment));
         when(users.findByUsername("stranger")).thenReturn(Optional.of(stranger));
 
@@ -128,11 +131,10 @@ class TicketAttachmentServiceTest {
         when(tickets.findById(1L)).thenReturn(Optional.of(ticket));
         when(users.findByUsername("tech")).thenReturn(Optional.of(user("tech", Role.TECHNICIAN)));
 
-        MultipartFile traversal = stubbedFile("../../etc/passwd", 10, new byte[]{});
-        assertThatThrownBy(() -> service.store(1L, traversal, "tech"))
-                .isInstanceOf(IllegalArgumentException.class);
+        MultipartFile traversal = stubbedFile("../../etc/passwd", 10, new byte[] {});
+        assertThatThrownBy(() -> service.store(1L, traversal, "tech")).isInstanceOf(IllegalArgumentException.class);
 
-        MultipartFile nested = stubbedFile("..\\docs\\fine notes.pdf", 10, new byte[]{4});
+        MultipartFile nested = stubbedFile("..\\docs\\fine notes.pdf", 10, new byte[] {4});
         service.store(1L, nested, "tech");
         ArgumentCaptor<TicketAttachment> captured = ArgumentCaptor.forClass(TicketAttachment.class);
         verify(repository).save(captured.capture());
@@ -149,8 +151,7 @@ class TicketAttachmentServiceTest {
         when(empty.isEmpty()).thenReturn(true);
         when(tickets.findById(1L)).thenReturn(Optional.of(new Ticket()));
         when(users.findByUsername("tech")).thenReturn(Optional.of(user("tech", Role.TECHNICIAN)));
-        assertThatThrownBy(() -> service.store(1L, empty, "tech"))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.store(1L, empty, "tech")).isInstanceOf(IllegalArgumentException.class);
         verify(repository, never()).save(any());
     }
 

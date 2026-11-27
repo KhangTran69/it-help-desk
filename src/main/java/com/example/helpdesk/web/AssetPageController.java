@@ -7,6 +7,7 @@ import com.example.helpdesk.model.Role;
 import com.example.helpdesk.repo.UserRepository;
 import com.example.helpdesk.service.AssetService;
 import jakarta.validation.Valid;
+import java.util.Set;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -15,8 +16,6 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
-import java.util.Set;
 
 @Controller
 public class AssetPageController {
@@ -29,23 +28,40 @@ public class AssetPageController {
     }
 
     @GetMapping("/assets")
-    String assetList(@RequestParam(required = false) String q,
-                     @RequestParam(required = false) AssetStatus status,
-                     @RequestParam(required = false) String category,
-                     @RequestParam(defaultValue = "0") int page,
-                     @RequestParam(defaultValue = "20") int size,
-                     @RequestParam(defaultValue = "updatedAt") String sort,
-                     @RequestParam(defaultValue = "desc") String dir, Model model) {
-        Pageable pageable = pageable(page, size, sort, dir,
-                Set.of("updatedAt", "createdAt", "assetTag", "name", "status", "category"), "updatedAt");
+    String assetList(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) AssetStatus status,
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "updatedAt") String sort,
+            @RequestParam(defaultValue = "desc") String dir,
+            Model model) {
+        Pageable pageable = pageable(
+                page,
+                size,
+                sort,
+                dir,
+                Set.of("updatedAt", "createdAt", "assetTag", "name", "status", "category"),
+                "updatedAt");
         model.addAttribute("assets", assets.filterPage(q, status, category, pageable));
         model.addAttribute("q", q);
         model.addAttribute("statuses", AssetStatus.values());
         model.addAttribute("categories", assets.categories());
         model.addAttribute("selectedStatus", status);
         model.addAttribute("selectedCategory", category);
-        model.addAttribute("sort", pageable.getSort().stream().findFirst().map(Sort.Order::getProperty).orElse("updatedAt"));
-        model.addAttribute("dir", pageable.getSort().stream().findFirst().map(o -> o.getDirection().name().toLowerCase()).orElse("desc"));
+        model.addAttribute(
+                "sort",
+                pageable.getSort().stream()
+                        .findFirst()
+                        .map(Sort.Order::getProperty)
+                        .orElse("updatedAt"));
+        model.addAttribute(
+                "dir",
+                pageable.getSort().stream()
+                        .findFirst()
+                        .map(o -> o.getDirection().name().toLowerCase())
+                        .orElse("desc"));
         model.addAttribute("size", pageable.getPageSize());
         model.addAttribute("isTechnician", true);
         return "assets";
@@ -59,8 +75,11 @@ public class AssetPageController {
     }
 
     @PostMapping("/assets")
-    String createAsset(@Valid @ModelAttribute("form") AssetForm form, BindingResult result,
-                       Model model, RedirectAttributes redirect) {
+    String createAsset(
+            @Valid @ModelAttribute("form") AssetForm form,
+            BindingResult result,
+            Model model,
+            RedirectAttributes redirect) {
         if (result.hasErrors()) {
             populateAssetForm(model, false);
             return "asset-form";
@@ -86,8 +105,12 @@ public class AssetPageController {
     }
 
     @PostMapping("/assets/{id}/edit")
-    String updateAsset(@PathVariable Long id, @Valid @ModelAttribute("form") AssetForm form,
-                       BindingResult result, Model model, RedirectAttributes redirect) {
+    String updateAsset(
+            @PathVariable Long id,
+            @Valid @ModelAttribute("form") AssetForm form,
+            BindingResult result,
+            Model model,
+            RedirectAttributes redirect) {
         if (result.hasErrors()) {
             model.addAttribute("asset", assets.get(id));
             populateAssetForm(model, true);

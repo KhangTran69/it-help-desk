@@ -66,55 +66,140 @@ public class Ticket {
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getTitle() { return title; }
-    public void setTitle(String v) { title = v; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String v) { description = v; }
+    public Long getVersion() {
+        return version;
+    }
 
-    public Category getCategory() { return category; }
-    public void setCategory(Category v) { category = v; }
+    public void setVersion(Long version) {
+        this.version = version;
+    }
 
-    public Priority getPriority() { return priority; }
-    public void setPriority(Priority v) { priority = v; }
+    public String getTitle() {
+        return title;
+    }
 
-    public TicketStatus getStatus() { return status; }
+    public void setTitle(String v) {
+        title = v;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String v) {
+        description = v;
+    }
+
+    public Category getCategory() {
+        return category;
+    }
+
+    public void setCategory(Category v) {
+        category = v;
+    }
+
+    public Priority getPriority() {
+        return priority;
+    }
+
+    public void setPriority(Priority v) {
+        priority = v;
+    }
+
+    public TicketStatus getStatus() {
+        return status;
+    }
+
     public void setStatus(TicketStatus v) {
         status = v;
         updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    public User getReporter() { return reporter; }
-    public void setReporter(User v) { reporter = v; }
+    public User getReporter() {
+        return reporter;
+    }
 
-    public User getTechnician() { return technician; }
-    public void setTechnician(User v) { technician = v; }
+    public void setReporter(User v) {
+        reporter = v;
+    }
 
-    public String getResolutionNotes() { return resolutionNotes; }
-    public void setResolutionNotes(String v) { resolutionNotes = v; }
+    public User getTechnician() {
+        return technician;
+    }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime v) { createdAt = v; }
+    public void setTechnician(User v) {
+        technician = v;
+    }
 
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime v) { updatedAt = v; }
+    public String getResolutionNotes() {
+        return resolutionNotes;
+    }
 
-    public long getSlaTargetSeconds() { return slaTargetSeconds; }
-    public void setSlaTargetSeconds(long value) { slaTargetSeconds = value; }
-    public long getSlaElapsedSeconds() { return slaElapsedSeconds; }
-    public void setSlaElapsedSeconds(long value) { slaElapsedSeconds = value; }
-    public LocalDateTime getSlaStartedAt() { return slaStartedAt; }
-    public void setSlaStartedAt(LocalDateTime value) { slaStartedAt = value; }
-    public LocalDateTime getSlaDueAt() { return slaDueAt; }
-    public void setSlaDueAt(LocalDateTime value) { slaDueAt = value; }
+    public void setResolutionNotes(String v) {
+        resolutionNotes = v;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime v) {
+        createdAt = v;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime v) {
+        updatedAt = v;
+    }
+
+    public long getSlaTargetSeconds() {
+        return slaTargetSeconds;
+    }
+
+    public void setSlaTargetSeconds(long value) {
+        slaTargetSeconds = value;
+    }
+
+    public long getSlaElapsedSeconds() {
+        return slaElapsedSeconds;
+    }
+
+    public void setSlaElapsedSeconds(long value) {
+        slaElapsedSeconds = value;
+    }
+
+    public LocalDateTime getSlaStartedAt() {
+        return slaStartedAt;
+    }
+
+    public void setSlaStartedAt(LocalDateTime value) {
+        slaStartedAt = value;
+    }
+
+    public LocalDateTime getSlaDueAt() {
+        return slaDueAt;
+    }
+
+    public void setSlaDueAt(LocalDateTime value) {
+        slaDueAt = value;
+    }
+
     public boolean isSlaOverdue() {
         long elapsed = slaElapsedSeconds;
-        if (slaStartedAt != null) elapsed += java.time.Duration.between(slaStartedAt, LocalDateTime.now(ZoneOffset.UTC)).getSeconds();
+        if (slaStartedAt != null)
+            elapsed += java.time.Duration.between(slaStartedAt, LocalDateTime.now(ZoneOffset.UTC))
+                    .getSeconds();
         return slaTargetSeconds > 0 && elapsed >= slaTargetSeconds;
     }
 }

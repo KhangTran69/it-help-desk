@@ -10,5 +10,4 @@ public record AttachmentDto(
         String contentType,
         long sizeBytes,
         String uploadedBy,
-        OffsetDateTime uploadedAt) {
-}
+        OffsetDateTime uploadedAt) {}

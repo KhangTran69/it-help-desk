@@ -9,14 +9,13 @@ import com.example.helpdesk.model.User;
 import com.example.helpdesk.repo.TicketAttachmentRepository;
 import com.example.helpdesk.repo.TicketRepository;
 import com.example.helpdesk.repo.UserRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Stores and validates ticket attachments.
@@ -30,15 +29,15 @@ public class TicketAttachmentService {
 
     public static final long MAX_SIZE_BYTES = 5L * 1024 * 1024;
     static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-            "pdf", "png", "jpg", "jpeg", "gif", "webp", "txt", "csv", "log", "md",
-            "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip");
+            "pdf", "png", "jpg", "jpeg", "gif", "webp", "txt", "csv", "log", "md", "doc", "docx", "xls", "xlsx", "ppt",
+            "pptx", "zip");
 
     private final TicketAttachmentRepository attachments;
     private final TicketRepository tickets;
     private final UserRepository users;
 
-    public TicketAttachmentService(TicketAttachmentRepository attachments, TicketRepository tickets,
-                                   UserRepository users) {
+    public TicketAttachmentService(
+            TicketAttachmentRepository attachments, TicketRepository tickets, UserRepository users) {
         this.attachments = attachments;
         this.tickets = tickets;
         this.users = users;
@@ -46,10 +45,9 @@ public class TicketAttachmentService {
 
     @Transactional
     public TicketAttachment store(Long ticketId, MultipartFile file, String username) {
-        Ticket ticket = tickets.findById(ticketId)
-                .orElseThrow(() -> new ResourceNotFoundException("Ticket not found"));
-        User uploader = users.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        Ticket ticket = tickets.findById(ticketId).orElseThrow(() -> new ResourceNotFoundException("Ticket not found"));
+        User uploader =
+                users.findByUsername(username).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         boolean reporter = ticket.getReporter() != null && sameUser(ticket.getReporter(), uploader);
         if (!reporter && uploader.getRole() != Role.TECHNICIAN) {
             throw new ResourceNotFoundException("Ticket not found");
@@ -67,8 +65,8 @@ public class TicketAttachmentService {
                     + String.join(", ", ALLOWED_EXTENSIONS.stream().sorted().toList()));
         }
         try {
-            TicketAttachment attachment = new TicketAttachment(ticket, filename,
-                    contentType(file.getContentType()), file.getSize(), uploader, file.getBytes());
+            TicketAttachment attachment = new TicketAttachment(
+                    ticket, filename, contentType(file.getContentType()), file.getSize(), uploader, file.getBytes());
             return attachments.save(attachment);
         } catch (IOException error) {
             throw new IllegalStateException("Upload failed; try again", error);
@@ -83,16 +81,17 @@ public class TicketAttachmentService {
     /** Returns the attachment when the viewer is a technician or the ticket reporter. */
     @Transactional(readOnly = true)
     public TicketAttachment readableContent(Long ticketId, Long attachmentId, String username) {
-        TicketAttachment attachment = attachments.findById(attachmentId)
+        TicketAttachment attachment = attachments
+                .findById(attachmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Attachment not found"));
-        User viewer = users.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User viewer = users.findByUsername(username).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         boolean reporter = attachment.getTicket().getReporter() != null
                 && sameUser(attachment.getTicket().getReporter(), viewer);
         if (!reporter && viewer.getRole() != com.example.helpdesk.model.Role.TECHNICIAN) {
             throw new ResourceNotFoundException("Attachment not found");
         }
-        if (attachment.getTicket().getId() != null && !attachment.getTicket().getId().equals(ticketId)) {
+        if (attachment.getTicket().getId() != null
+                && !attachment.getTicket().getId().equals(ticketId)) {
             throw new ResourceNotFoundException("Attachment not found");
         }
         return attachment;

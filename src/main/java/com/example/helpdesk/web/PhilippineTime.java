@@ -1,18 +1,18 @@
 package com.example.helpdesk.web;
 
-import org.springframework.stereotype.Component;
-
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import org.springframework.stereotype.Component;
 
 @Component("phTime")
 public class PhilippineTime {
     private static final ZoneId ZONE = ZoneId.of("Asia/Manila");
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("MMM d, yyyy 'PHT'", Locale.ENGLISH);
-    private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a 'PHT'", Locale.ENGLISH);
+    private static final DateTimeFormatter DATE_TIME =
+            DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a 'PHT'", Locale.ENGLISH);
 
     /** Database LocalDateTime values are kept as UTC wall-clock values; convert only for display. */
     public String date(LocalDateTime utcValue) {

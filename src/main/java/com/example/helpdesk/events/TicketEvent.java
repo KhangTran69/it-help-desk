@@ -24,7 +24,15 @@ public class TicketEvent extends ApplicationEvent {
         this.newValue = null;
     }
 
-    public TicketEvent(Object source, Ticket ticket, User actor, String action, String details, String fieldChanged, String previousValue, String newValue) {
+    public TicketEvent(
+            Object source,
+            Ticket ticket,
+            User actor,
+            String action,
+            String details,
+            String fieldChanged,
+            String previousValue,
+            String newValue) {
         super(source);
         this.ticket = ticket;
         this.actor = actor;
@@ -35,11 +43,31 @@ public class TicketEvent extends ApplicationEvent {
         this.newValue = newValue;
     }
 
-    public Ticket getTicket() { return ticket; }
-    public User getActor() { return actor; }
-    public String getAction() { return action; }
-    public String getDetails() { return details; }
-    public String getFieldChanged() { return fieldChanged; }
-    public String getPreviousValue() { return previousValue; }
-    public String getNewValue() { return newValue; }
+    public Ticket getTicket() {
+        return ticket;
+    }
+
+    public User getActor() {
+        return actor;
+    }
+
+    public String getAction() {
+        return action;
+    }
+
+    public String getDetails() {
+        return details;
+    }
+
+    public String getFieldChanged() {
+        return fieldChanged;
+    }
+
+    public String getPreviousValue() {
+        return previousValue;
+    }
+
+    public String getNewValue() {
+        return newValue;
+    }
 }

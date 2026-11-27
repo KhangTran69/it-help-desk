@@ -7,6 +7,7 @@ import com.example.helpdesk.repo.UserRepository;
 import com.example.helpdesk.service.TicketAttachmentService;
 import com.example.helpdesk.service.TicketService;
 import jakarta.validation.Valid;
+import java.util.Set;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.PageRequest;
@@ -24,8 +25,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.util.Set;
-
 @Controller
 public class TicketPageController {
     private final TicketService tickets;
@@ -39,25 +38,28 @@ public class TicketPageController {
     }
 
     @GetMapping("/tickets")
-    String ticketList(@RequestParam(required = false) String q,
-                      @RequestParam(required = false) TicketStatus status,
-                      @RequestParam(required = false) String statusGroup,
-                      @RequestParam(required = false) Priority priority,
-                      @RequestParam(required = false) Category category,
-                      @RequestParam(required = false) Long technicianId,
-                      @RequestParam(required = false) Boolean unassigned,
-                      @RequestParam(defaultValue = "false") boolean overdue,
-                      @RequestParam(defaultValue = "0") int page,
-                      @RequestParam(defaultValue = "20") int size,
-                      @RequestParam(defaultValue = "updatedAt") String sort,
-                      @RequestParam(defaultValue = "desc") String dir,
-                      Model model) {
-        Pageable pageable = pageable(page, size, sort, dir,
-                Set.of("updatedAt", "createdAt", "priority", "status", "title"), "updatedAt");
+    String ticketList(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) TicketStatus status,
+            @RequestParam(required = false) String statusGroup,
+            @RequestParam(required = false) Priority priority,
+            @RequestParam(required = false) Category category,
+            @RequestParam(required = false) Long technicianId,
+            @RequestParam(required = false) Boolean unassigned,
+            @RequestParam(defaultValue = "false") boolean overdue,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "updatedAt") String sort,
+            @RequestParam(defaultValue = "desc") String dir,
+            Model model) {
+        Pageable pageable = pageable(
+                page, size, sort, dir, Set.of("updatedAt", "createdAt", "priority", "status", "title"), "updatedAt");
         boolean resolvedClosed = "resolved-closed".equals(statusGroup);
         if (statusGroup != null && !resolvedClosed) throw new IllegalArgumentException("Unknown ticket status group");
-        model.addAttribute("tickets", tickets.searchPage(status, priority, category, technicianId, unassigned,
-                q, resolvedClosed, overdue, pageable));
+        model.addAttribute(
+                "tickets",
+                tickets.searchPage(
+                        status, priority, category, technicianId, unassigned, q, resolvedClosed, overdue, pageable));
         model.addAttribute("statusGroup", resolvedClosed ? statusGroup : null);
         model.addAttribute("q", q);
         model.addAttribute("selectedStatus", status);
@@ -66,8 +68,18 @@ public class TicketPageController {
         model.addAttribute("selectedTechnicianId", technicianId);
         model.addAttribute("unassigned", unassigned);
         model.addAttribute("overdue", overdue);
-        model.addAttribute("sort", pageable.getSort().stream().findFirst().map(Sort.Order::getProperty).orElse("updatedAt"));
-        model.addAttribute("dir", pageable.getSort().stream().findFirst().map(o -> o.getDirection().name().toLowerCase()).orElse("desc"));
+        model.addAttribute(
+                "sort",
+                pageable.getSort().stream()
+                        .findFirst()
+                        .map(Sort.Order::getProperty)
+                        .orElse("updatedAt"));
+        model.addAttribute(
+                "dir",
+                pageable.getSort().stream()
+                        .findFirst()
+                        .map(o -> o.getDirection().name().toLowerCase())
+                        .orElse("desc"));
         model.addAttribute("size", pageable.getPageSize());
         model.addAttribute("statuses", TicketStatus.values());
         model.addAttribute("priorities", Priority.values());
@@ -85,8 +97,12 @@ public class TicketPageController {
     }
 
     @PostMapping("/tickets")
-    String createTicket(@Valid @ModelAttribute("form") TicketCreateForm form, BindingResult result,
-                        Authentication authentication, Model model, RedirectAttributes redirect) {
+    String createTicket(
+            @Valid @ModelAttribute("form") TicketCreateForm form,
+            BindingResult result,
+            Authentication authentication,
+            Model model,
+            RedirectAttributes redirect) {
         if (result.hasErrors()) {
             populateTicketForm(model);
             return "ticket-form";
@@ -96,16 +112,23 @@ public class TicketPageController {
             redirect.addFlashAttribute("success", "Ticket created successfully.");
             return "redirect:/tickets/" + saved.getId();
         }
-        redirect.addFlashAttribute("success", "Your ticket was submitted successfully. Reference #" + saved.getId() + ".");
+        redirect.addFlashAttribute(
+                "success", "Your ticket was submitted successfully. Reference #" + saved.getId() + ".");
         redirect.addFlashAttribute("submittedTicketId", saved.getId());
         return "redirect:/tickets/new";
     }
 
     @GetMapping("/my-tickets")
-    String myTickets(Authentication authentication, @RequestParam(defaultValue = "0") int page,
-                     @RequestParam(defaultValue = "10") int size, Model model) {
-        model.addAttribute("tickets", tickets.findMyTickets(authentication.getName(),
-                pageable(page, size, "updatedAt", "desc", Set.of("updatedAt"), "updatedAt")));
+    String myTickets(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Model model) {
+        model.addAttribute(
+                "tickets",
+                tickets.findMyTickets(
+                        authentication.getName(),
+                        pageable(page, size, "updatedAt", "desc", Set.of("updatedAt"), "updatedAt")));
         return "my-tickets";
     }
 
@@ -122,8 +145,11 @@ public class TicketPageController {
     }
 
     @PostMapping("/my-tickets/{id}/comments")
-    String employeeComment(@PathVariable Long id, @RequestParam String content, Authentication authentication,
-                           RedirectAttributes redirect) {
+    String employeeComment(
+            @PathVariable Long id,
+            @RequestParam String content,
+            Authentication authentication,
+            RedirectAttributes redirect) {
         tickets.addEmployeeComment(id, authentication.getName(), content);
         redirect.addFlashAttribute("success", "Your comment was added.");
         return "redirect:/my-tickets/" + id;
@@ -143,16 +169,19 @@ public class TicketPageController {
     }
 
     @PostMapping("/tickets/{id}/attachments")
-    String uploadAttachment(@PathVariable Long id, @RequestParam("file") MultipartFile file,
-                            Authentication authentication, RedirectAttributes redirect) {
+    String uploadAttachment(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication,
+            RedirectAttributes redirect) {
         attachments.store(id, file, authentication.getName());
         redirect.addFlashAttribute("success", "Attachment added.");
         return "redirect:/tickets/" + id;
     }
 
     @GetMapping("/tickets/{id}/attachments/{attachmentId}/download")
-    ResponseEntity<Resource> downloadAttachment(@PathVariable Long id, @PathVariable Long attachmentId,
-                                                Authentication authentication) {
+    ResponseEntity<Resource> downloadAttachment(
+            @PathVariable Long id, @PathVariable Long attachmentId, Authentication authentication) {
         return attachmentResource(attachments.readableContent(id, attachmentId, authentication.getName()));
     }
 
@@ -160,7 +189,8 @@ public class TicketPageController {
         ByteArrayResource body = new ByteArrayResource(attachment.getContent());
         String contentDisposition = ContentDisposition.builder("attachment")
                 .filename(attachment.getFilename())
-                .build().toString();
+                .build()
+                .toString();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
                 .contentType(MediaType.parseMediaType(attachment.getContentType()))
@@ -169,9 +199,12 @@ public class TicketPageController {
     }
 
     @PostMapping("/tickets/{id}/comments")
-    String technicianComment(@PathVariable Long id, @RequestParam String content,
-                             @RequestParam(defaultValue = "false") boolean internalNote,
-                             Authentication authentication, RedirectAttributes redirect) {
+    String technicianComment(
+            @PathVariable Long id,
+            @RequestParam String content,
+            @RequestParam(defaultValue = "false") boolean internalNote,
+            Authentication authentication,
+            RedirectAttributes redirect) {
         tickets.addTechnicianComment(id, authentication.getName(), content, internalNote);
         redirect.addFlashAttribute("success", internalNote ? "Internal note added." : "Reply added.");
         return "redirect:/tickets/" + id;
@@ -189,8 +222,13 @@ public class TicketPageController {
     }
 
     @PostMapping("/tickets/{id}/edit")
-    String saveTicket(@PathVariable Long id, @Valid @ModelAttribute("form") TicketEditForm form,
-                      BindingResult result, Authentication authentication, Model model, RedirectAttributes redirect) {
+    String saveTicket(
+            @PathVariable Long id,
+            @Valid @ModelAttribute("form") TicketEditForm form,
+            BindingResult result,
+            Authentication authentication,
+            Model model,
+            RedirectAttributes redirect) {
         if (result.hasErrors()) {
             model.addAttribute("ticket", tickets.get(id));
             populateTicketForm(model);
@@ -204,33 +242,44 @@ public class TicketPageController {
     }
 
     @PostMapping("/tickets/{id}/status")
-    String updateStatus(@PathVariable Long id, @RequestParam TicketStatus status,
-                        @RequestParam(required = false) String notes, @RequestParam Long version,
-                        Authentication authentication, RedirectAttributes redirect) {
+    String updateStatus(
+            @PathVariable Long id,
+            @RequestParam TicketStatus status,
+            @RequestParam(required = false) String notes,
+            @RequestParam Long version,
+            Authentication authentication,
+            RedirectAttributes redirect) {
         tickets.updateStatus(id, status, notes, authentication.getName(), version);
         redirect.addFlashAttribute("success", "Ticket status updated.");
         return "redirect:/tickets/" + id;
     }
 
     @PostMapping("/tickets/{id}/assign")
-    String assignTicket(@PathVariable Long id, @RequestParam Long technicianId, @RequestParam Long version,
-                        Authentication authentication, RedirectAttributes redirect) {
+    String assignTicket(
+            @PathVariable Long id,
+            @RequestParam Long technicianId,
+            @RequestParam Long version,
+            Authentication authentication,
+            RedirectAttributes redirect) {
         tickets.assign(id, technicianId, authentication.getName(), version);
         redirect.addFlashAttribute("success", "Ticket assigned successfully.");
         return "redirect:/tickets/" + id;
     }
 
     @PostMapping("/my-tickets/{id}/attachments")
-    String uploadMyAttachment(@PathVariable Long id, @RequestParam("file") MultipartFile file,
-                              Authentication authentication, RedirectAttributes redirect) {
+    String uploadMyAttachment(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication,
+            RedirectAttributes redirect) {
         attachments.store(id, file, authentication.getName());
         redirect.addFlashAttribute("success", "Attachment added.");
         return "redirect:/my-tickets/" + id;
     }
 
     @GetMapping("/my-tickets/{id}/attachments/{attachmentId}/download")
-    ResponseEntity<Resource> downloadMyAttachment(@PathVariable Long id, @PathVariable Long attachmentId,
-                                                  Authentication authentication) {
+    ResponseEntity<Resource> downloadMyAttachment(
+            @PathVariable Long id, @PathVariable Long attachmentId, Authentication authentication) {
         return attachmentResource(attachments.readableContent(id, attachmentId, authentication.getName()));
     }
 
@@ -240,8 +289,9 @@ public class TicketPageController {
     }
 
     private boolean isTechnician(Authentication authentication) {
-        return authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()));
+        return authentication != null
+                && authentication.getAuthorities().stream()
+                        .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()));
     }
 
     private Pageable pageable(int page, int size, String sort, String direction, Set<String> allowed, String fallback) {

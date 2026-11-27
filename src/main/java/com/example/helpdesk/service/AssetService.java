@@ -1,8 +1,8 @@
 package com.example.helpdesk.service;
 
 import com.example.helpdesk.dto.AssetForm;
-import com.example.helpdesk.exception.ResourceNotFoundException;
 import com.example.helpdesk.exception.AssetEditConflictException;
+import com.example.helpdesk.exception.ResourceNotFoundException;
 import com.example.helpdesk.metrics.BusinessMetrics;
 import com.example.helpdesk.model.Asset;
 import com.example.helpdesk.model.AssetStatus;
@@ -10,15 +10,14 @@ import com.example.helpdesk.model.Role;
 import com.example.helpdesk.model.User;
 import com.example.helpdesk.repo.AssetRepository;
 import com.example.helpdesk.repo.UserRepository;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.List;
 
 @Service
 public class AssetService {
@@ -99,7 +98,8 @@ public class AssetService {
     public Asset create(AssetForm form) {
         validate(form);
         String cleanTag = form.getAssetTag().trim();
-        if (repo.existsByAssetTag(cleanTag)) throw new IllegalArgumentException("Asset tag already exists: " + cleanTag);
+        if (repo.existsByAssetTag(cleanTag))
+            throw new IllegalArgumentException("Asset tag already exists: " + cleanTag);
 
         Asset asset = new Asset();
         form.updateAsset(asset);
@@ -112,7 +112,8 @@ public class AssetService {
             if (users != null) {
                 User user = users.findById(form.getAssignedUserId())
                         .orElseThrow(() -> new ResourceNotFoundException("Assigned user not found"));
-                if (user.getRole() != Role.EMPLOYEE) throw new IllegalArgumentException("Assets can only be assigned to employees");
+                if (user.getRole() != Role.EMPLOYEE)
+                    throw new IllegalArgumentException("Assets can only be assigned to employees");
                 asset.setAssignedUser(user);
                 if (asset.getStatus() == AssetStatus.AVAILABLE) {
                     asset.setStatus(AssetStatus.ASSIGNED);
@@ -157,7 +158,8 @@ public class AssetService {
             if (users != null) {
                 User user = users.findById(form.getAssignedUserId())
                         .orElseThrow(() -> new ResourceNotFoundException("Assigned user not found"));
-                if (user.getRole() != Role.EMPLOYEE) throw new IllegalArgumentException("Assets can only be assigned to employees");
+                if (user.getRole() != Role.EMPLOYEE)
+                    throw new IllegalArgumentException("Assets can only be assigned to employees");
                 existing.setAssignedUser(user);
                 if (existing.getStatus() == AssetStatus.AVAILABLE) {
                     existing.setStatus(AssetStatus.ASSIGNED);
@@ -196,9 +198,12 @@ public class AssetService {
     }
 
     private void validate(AssetForm form) {
-        if (form.getAssetTag() == null || form.getAssetTag().isBlank()) throw new IllegalArgumentException("Asset tag is required");
-        if (form.getName() == null || form.getName().isBlank()) throw new IllegalArgumentException("Equipment name is required");
-        if (form.getCategory() == null || form.getCategory().isBlank()) throw new IllegalArgumentException("Category is required");
+        if (form.getAssetTag() == null || form.getAssetTag().isBlank())
+            throw new IllegalArgumentException("Asset tag is required");
+        if (form.getName() == null || form.getName().isBlank())
+            throw new IllegalArgumentException("Equipment name is required");
+        if (form.getCategory() == null || form.getCategory().isBlank())
+            throw new IllegalArgumentException("Category is required");
         if (form.getStatus() == null) throw new IllegalArgumentException("Status is required");
         if (form.getStatus() == AssetStatus.RETIRED && form.getAssignedUserId() != null) {
             throw new IllegalArgumentException("Retired assets cannot be assigned");
@@ -252,10 +257,11 @@ public class AssetService {
     public Asset assignAsset(Long id, Long userId, Long expectedVersion) {
         Asset existing = get(id);
         assertExpectedVersion(existing, expectedVersion);
-        User user = users.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        if (user.getRole() != Role.EMPLOYEE) throw new IllegalArgumentException("Assets can only be assigned to employees");
-        if (existing.getStatus() == AssetStatus.RETIRED) throw new IllegalArgumentException("Retired assets cannot be assigned");
+        User user = users.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (user.getRole() != Role.EMPLOYEE)
+            throw new IllegalArgumentException("Assets can only be assigned to employees");
+        if (existing.getStatus() == AssetStatus.RETIRED)
+            throw new IllegalArgumentException("Retired assets cannot be assigned");
         existing.setAssignedUser(user);
         if (existing.getStatus() == AssetStatus.AVAILABLE) {
             existing.setStatus(AssetStatus.ASSIGNED);

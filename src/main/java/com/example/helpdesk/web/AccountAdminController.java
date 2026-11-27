@@ -28,8 +28,11 @@ public class AccountAdminController {
     }
 
     @PostMapping("/users/{id}/enabled")
-    String setEnabled(@PathVariable Long id, @RequestParam boolean enabled, Authentication authentication,
-                      RedirectAttributes redirect) {
+    String setEnabled(
+            @PathVariable Long id,
+            @RequestParam boolean enabled,
+            Authentication authentication,
+            RedirectAttributes redirect) {
         User user = users.findById(id).orElseThrow(() -> new ResourceNotFoundException("Account not found"));
         if (!enabled && user.getUsername().equals(authentication.getName())) {
             throw new AccessDeniedException("You cannot disable your own account.");

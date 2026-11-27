@@ -1,16 +1,15 @@
 package com.example.helpdesk.ops;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class BackupMysqlScriptTest {
 
@@ -30,7 +29,8 @@ class BackupMysqlScriptTest {
 
         assertEquals(0, result.exitCode(), result.output());
         assertEquals("SQL dump content\n", Files.readString(output));
-        assertEquals(Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
+        assertEquals(
+                Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
                 Files.getPosixFilePermissions(output));
     }
 
@@ -53,7 +53,9 @@ class BackupMysqlScriptTest {
     private Path installFakeDocker() throws IOException {
         Path fakeBin = Files.createDirectory(tempDir.resolve("bin"));
         Path docker = fakeBin.resolve("docker");
-        Files.writeString(docker, """
+        Files.writeString(
+                docker,
+                """
                 #!/usr/bin/env bash
                 if [[ "$FAKE_DOCKER_EXIT" != "0" ]]; then
                   printf 'fake dump failure\\n' >&2
@@ -61,18 +63,24 @@ class BackupMysqlScriptTest {
                 fi
                 printf 'SQL dump content\\n'
                 """);
-        Files.setPosixFilePermissions(docker, Set.of(
-                PosixFilePermission.OWNER_READ,
-                PosixFilePermission.OWNER_WRITE,
-                PosixFilePermission.OWNER_EXECUTE));
+        Files.setPosixFilePermissions(
+                docker,
+                Set.of(
+                        PosixFilePermission.OWNER_READ,
+                        PosixFilePermission.OWNER_WRITE,
+                        PosixFilePermission.OWNER_EXECUTE));
         return fakeBin;
     }
 
     private CommandResult runBackup(Path output, Path fakeBin, String fakeExitCode) throws Exception {
         ProcessBuilder builder = new ProcessBuilder("bash", SCRIPT.toString(), output.toString());
         builder.redirectErrorStream(true);
-        builder.environment().put("PATH", fakeBin + System.getProperty("path.separator")
-                + builder.environment().getOrDefault("PATH", ""));
+        builder.environment()
+                .put(
+                        "PATH",
+                        fakeBin
+                                + System.getProperty("path.separator")
+                                + builder.environment().getOrDefault("PATH", ""));
         builder.environment().put("FAKE_DOCKER_EXIT", fakeExitCode);
         Process process = builder.start();
         String commandOutput = new String(process.getInputStream().readAllBytes());
@@ -80,8 +88,11 @@ class BackupMysqlScriptTest {
     }
 
     private static Set<PosixFilePermission> readableByEveryone() {
-        return Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE,
-                PosixFilePermission.GROUP_READ, PosixFilePermission.OTHERS_READ);
+        return Set.of(
+                PosixFilePermission.OWNER_READ,
+                PosixFilePermission.OWNER_WRITE,
+                PosixFilePermission.GROUP_READ,
+                PosixFilePermission.OTHERS_READ);
     }
 
     private record CommandResult(int exitCode, String output) {}

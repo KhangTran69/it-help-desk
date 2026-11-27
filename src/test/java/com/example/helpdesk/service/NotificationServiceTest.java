@@ -1,5 +1,9 @@
 package com.example.helpdesk.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
 import com.example.helpdesk.events.TicketEvent;
 import com.example.helpdesk.model.Role;
 import com.example.helpdesk.model.Ticket;
@@ -13,15 +17,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
 
     @Mock
     private TicketNotificationRepository notifications;
+
     @InjectMocks
     private NotificationService service;
 
@@ -39,14 +40,15 @@ class NotificationServiceTest {
         User technician = new User("tech", "pw", "Tech Name", Role.TECHNICIAN);
         ticket.setReporter(reporter);
 
-        service.onTicketEvent(new TicketEvent(new Object(), ticket, technician, "STATUS_CHANGED",
-                "Status updated", "status", "OPEN", "RESOLVED"));
+        service.onTicketEvent(new TicketEvent(
+                new Object(), ticket, technician, "STATUS_CHANGED", "Status updated", "status", "OPEN", "RESOLVED"));
 
         ArgumentCaptor<TicketNotification> captured = ArgumentCaptor.forClass(TicketNotification.class);
         verify(notifications).save(captured.capture());
         assertThat(captured.getValue().getRecipient()).isSameAs(reporter);
         assertThat(captured.getValue().getTitle()).contains("#5");
-        assertThat(captured.getValue().getMessage()).contains("Password reset request")
+        assertThat(captured.getValue().getMessage())
+                .contains("Password reset request")
                 .contains("RESOLVED");
     }
 
@@ -58,8 +60,8 @@ class NotificationServiceTest {
         ticket.setReporter(reporter);
         ticket.setTechnician(actor);
 
-        service.onTicketEvent(new TicketEvent(new Object(), ticket, actor, "ASSIGNED", "Ticket assigned",
-                "technician", null, "tech"));
+        service.onTicketEvent(new TicketEvent(
+                new Object(), ticket, actor, "ASSIGNED", "Ticket assigned", "technician", null, "tech"));
 
         ArgumentCaptor<TicketNotification> captured = ArgumentCaptor.forClass(TicketNotification.class);
         verify(notifications).save(captured.capture());
@@ -70,15 +72,19 @@ class NotificationServiceTest {
 
     @Test
     void createdEventsStayOutOfTheFeed() {
-        service.onTicketEvent(new TicketEvent(new Object(), ticket(),
-                new User("employee", "pw", "Employee Name", Role.EMPLOYEE), "CREATED", "Ticket submitted"));
+        service.onTicketEvent(new TicketEvent(
+                new Object(),
+                ticket(),
+                new User("employee", "pw", "Employee Name", Role.EMPLOYEE),
+                "CREATED",
+                "Ticket submitted"));
         verify(notifications, never()).save(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
     void missingRecipientIsSkippedSafely() {
-        service.onTicketEvent(new TicketEvent(new Object(), ticket(), null, "STATUS_CHANGED",
-                "Status updated", "status", "OPEN", "RESOLVED"));
+        service.onTicketEvent(new TicketEvent(
+                new Object(), ticket(), null, "STATUS_CHANGED", "Status updated", "status", "OPEN", "RESOLVED"));
         verify(notifications, never()).save(org.mockito.ArgumentMatchers.any());
     }
 }

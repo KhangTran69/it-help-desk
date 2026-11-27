@@ -14,8 +14,14 @@ public record TicketAttachmentMetadata(
 
     public static TicketAttachmentMetadata from(TicketAttachment attachment) {
         User uploader = attachment.getUploadedBy();
-        return new TicketAttachmentMetadata(attachment.getId(), attachment.getTicket().getId(),
-                attachment.getFilename(), attachment.getContentType(), attachment.getSizeBytes(),
-                uploader.getUsername(), uploader.getFullName(), attachment.getUploadedAt());
+        return new TicketAttachmentMetadata(
+                attachment.getId(),
+                attachment.getTicket().getId(),
+                attachment.getFilename(),
+                attachment.getContentType(),
+                attachment.getSizeBytes(),
+                uploader.getUsername(),
+                uploader.getFullName(),
+                attachment.getUploadedAt());
     }
 }

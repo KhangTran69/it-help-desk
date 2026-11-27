@@ -1,10 +1,10 @@
 package com.example.helpdesk.web;
 
 import com.example.helpdesk.repo.TicketNotificationRepository;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -20,10 +20,11 @@ public class NotificationPageController {
 
     @GetMapping("/notifications")
     String myNotifications(Authentication authentication, Model model) {
-        model.addAttribute("isTechnician", authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority())));
-        model.addAttribute("notifications",
-                notifications.findByRecipientUsernameOrderByCreatedAtDesc(authentication.getName()));
+        model.addAttribute(
+                "isTechnician", authentication.getAuthorities().stream().anyMatch(authority -> "ROLE_TECHNICIAN"
+                        .equals(authority.getAuthority())));
+        model.addAttribute(
+                "notifications", notifications.findByRecipientUsernameOrderByCreatedAtDesc(authentication.getName()));
         return "notifications";
     }
 
@@ -42,7 +43,8 @@ public class NotificationPageController {
 
     @PostMapping("/notifications/read-all")
     String markAllRead(Authentication authentication, RedirectAttributes redirect) {
-        notifications.findByRecipientUsernameAndReadFalse(authentication.getName())
+        notifications
+                .findByRecipientUsernameAndReadFalse(authentication.getName())
                 .forEach(notification -> {
                     notification.markRead();
                     notifications.save(notification);

@@ -1,31 +1,30 @@
 package com.example.helpdesk.api;
 
+import com.example.helpdesk.exception.AssetEditConflictException;
 import com.example.helpdesk.exception.ResourceNotFoundException;
 import com.example.helpdesk.exception.TicketEditConflictException;
-import com.example.helpdesk.exception.AssetEditConflictException;
+import jakarta.persistence.OptimisticLockException;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.HttpMediaTypeNotSupportedException;
-import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.server.ResponseStatusException;
-
-import jakarta.persistence.OptimisticLockException;
-import java.util.Map;
-import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RestControllerAdvice(basePackages = "com.example.helpdesk.api")
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -36,12 +35,16 @@ public class ApiExceptionHandler {
     ResponseEntity<Map<String, Object>> validation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .distinct().collect(Collectors.joining("; "));
+                .distinct()
+                .collect(Collectors.joining("; "));
         return error(HttpStatus.BAD_REQUEST, message.isBlank() ? "Request validation failed." : message);
     }
 
-    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
-            MissingServletRequestParameterException.class})
+    @ExceptionHandler({
+        HttpMessageNotReadableException.class,
+        MethodArgumentTypeMismatchException.class,
+        MissingServletRequestParameterException.class
+    })
     ResponseEntity<Map<String, Object>> malformedRequest(Exception ex) {
         return error(HttpStatus.BAD_REQUEST, "A request value is missing or invalid. Check the request and try again.");
     }
@@ -82,8 +85,12 @@ public class ApiExceptionHandler {
         return error(HttpStatus.CONFLICT, "A record conflicts with an existing unique value.");
     }
 
-    @ExceptionHandler({TicketEditConflictException.class, AssetEditConflictException.class, ObjectOptimisticLockingFailureException.class,
-            OptimisticLockException.class})
+    @ExceptionHandler({
+        TicketEditConflictException.class,
+        AssetEditConflictException.class,
+        ObjectOptimisticLockingFailureException.class,
+        OptimisticLockException.class
+    })
     ResponseEntity<Map<String, Object>> staleUpdate(Exception ex) {
         return error(HttpStatus.CONFLICT, "This record changed since you loaded it. Reload it before saving again.");
     }
@@ -95,9 +102,10 @@ public class ApiExceptionHandler {
     }
 
     private ResponseEntity<Map<String, Object>> error(HttpStatus status, String message) {
-        return ResponseEntity.status(status).body(Map.of(
-                "status", status.value(),
-                "error", status.getReasonPhrase(),
-                "message", message == null ? status.getReasonPhrase() : message));
+        return ResponseEntity.status(status)
+                .body(Map.of(
+                        "status", status.value(),
+                        "error", status.getReasonPhrase(),
+                        "message", message == null ? status.getReasonPhrase() : message));
     }
 }
