@@ -33,7 +33,7 @@ jobs:
         run: mvn --batch-mode --no-transfer-progress verify -Dbrowser.tests=true
       - name: Upload test reports on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-reports-${{ github.run_id }}
           path: |
@@ -42,7 +42,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jacoco-report-${{ github.run_id }}
           path: target/site/jacoco/
@@ -51,7 +51,7 @@ jobs:
       - name: SpotBugs static analysis report (non-blocking until triaged)
         run: mvn --batch-mode --no-transfer-progress spotbugs:spotbugs
       - name: Upload SpotBugs findings
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: spotbugs-${{ github.run_id }}
           path: target/spotbugsXml.xml
@@ -60,7 +60,7 @@ jobs:
       - name: Generate CycloneDX SBOM
         run: mvn --batch-mode --no-transfer-progress cyclonedx:makeAggregateBom
       - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ github.run_id }}
           path: target/bom.json
