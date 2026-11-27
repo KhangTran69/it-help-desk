@@ -1,6 +1,7 @@
 package com.example.helpdesk.web;
 
 import com.example.helpdesk.model.User;
+import com.example.helpdesk.repo.TicketNotificationRepository;
 import com.example.helpdesk.repo.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -10,9 +11,11 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 @ControllerAdvice(annotations = Controller.class)
 public class CurrentUserModelAdvice {
     private final UserRepository users;
+    private final TicketNotificationRepository notifications;
 
-    public CurrentUserModelAdvice(UserRepository users) {
+    public CurrentUserModelAdvice(UserRepository users, TicketNotificationRepository notifications) {
         this.users = users;
+        this.notifications = notifications;
     }
 
     @ModelAttribute("currentUser")
@@ -30,5 +33,16 @@ public class CurrentUserModelAdvice {
         return authentication != null
                 && authentication.getAuthorities().stream()
                         .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()));
+    }
+
+    /** Unread badge count for the navigation fragment; zero for anonymous visitors. */
+    @ModelAttribute("unreadNotifications")
+    public long unreadNotifications(Authentication authentication) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return 0;
+        }
+        return notifications.countByRecipientUsernameAndReadFalse(authentication.getName());
     }
 }

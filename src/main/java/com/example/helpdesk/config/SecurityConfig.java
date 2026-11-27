@@ -148,7 +148,7 @@ public class SecurityConfig {
                 .addFilterAfter(enabledAccountFilter, UsernamePasswordAuthenticationFilter.class)
                 .headers(headers -> headers.contentSecurityPolicy(
                                 csp -> csp.policyDirectives(
-                                        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';"))
+                                        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';"))
                         .frameOptions(frame -> frame.sameOrigin())
                         .httpStrictTransportSecurity(
                                 hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))

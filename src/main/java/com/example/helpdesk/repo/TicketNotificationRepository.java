@@ -1,8 +1,9 @@
 package com.example.helpdesk.repo;
 
 import com.example.helpdesk.model.TicketNotification;
-import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -11,11 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface TicketNotificationRepository extends JpaRepository<TicketNotification, Long> {
 
-    List<TicketNotification> findByRecipientUsernameOrderByCreatedAtDesc(String username);
+    Page<TicketNotification> findByRecipientUsernameOrderByCreatedAtDesc(String username, Pageable pageable);
 
     long countByRecipientUsernameAndReadFalse(String username);
-
-    List<TicketNotification> findByRecipientUsernameAndReadFalse(String username);
 
     Optional<TicketNotification> findByIdAndRecipientUsername(Long id, String username);
 

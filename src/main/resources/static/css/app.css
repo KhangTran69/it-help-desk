@@ -84,3 +84,4 @@ a,button,input,select,textarea{touch-action:manipulation}
 :root{--teal-dark:#087569;--muted:#64748b}
 .button,button{background:#087569;font-family:inherit;font-weight:600}
 .button:hover,button:hover{background:#075d55}
+nav .badge{margin-left:6px;font-size:10px;padding:1px 6px}

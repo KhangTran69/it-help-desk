@@ -7,18 +7,7 @@
   <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-<aside>
-  <h2 class="brand"><i class="brand-mark"></i><span>IT Helpdesk</span></h2>
-  <nav>
-    <a href="/"><b class="nav-icon">⌂</b><span>Dashboard</span></a>
-    <a href="/tickets"><b class="nav-icon">▣</b><span>Tickets</span></a>
-    <a class="active" href="/assets" aria-current="page"><b class="nav-icon" aria-hidden="true">▤</b><span>Assets</span></a>
-  </nav>
-  <form class="signout" method="post" action="/logout">
-    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-    <button class="link"><b class="nav-icon">↪</b><span>Sign out</span></button>
-  </form>
-</aside>
+<aside th:replace="~{fragments/navigation :: sidebar('assets')}"></aside>
 <main class="content">
   <div class="topbar">
     <span>Operations workspace</span>
@@ -46,12 +35,12 @@
       <select name="dir" aria-label="Sort direction"><option value="desc" th:selected="${dir == 'desc'}">Descending</option><option value="asc" th:selected="${dir == 'asc'}">Ascending</option></select>
       <input name="q" placeholder="Search by asset tag, name, or manufacturer" th:value="${q}">
 
-      <select name="status" aria-label="Status" onchange="this.form.submit()">
+      <select name="status" aria-label="Status" data-auto-submit="true">
         <option value="">Status: All</option>
         <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${s == selectedStatus}"></option>
       </select>
 
-      <select name="category" aria-label="Category" onchange="this.form.submit()">
+      <select name="category" aria-label="Category" data-auto-submit="true">
         <option value="">Category: All</option>
         <option th:each="c : ${categories}" th:value="${c}" th:text="${c}" th:selected="${c == selectedCategory}"></option>
       </select>
@@ -93,7 +82,7 @@
           <div style="display:inline-flex; gap:6px;">
             <a class="button secondary" style="padding:6px 12px; font-size:12px;" th:href="@{'/assets/' + ${a.id} + '/edit'}">✎ Edit</a>
             <form th:if="${a.assignedUser != null}" method="post" th:action="@{'/assets/' + ${a.id} + '/unassign'}" style="display:inline;"
-                  th:data-assigned="${a.assignedUser.fullName}" onsubmit="return confirm('Unassign this asset from ' + this.dataset.assigned + '?');">
+                  th:data-assigned="${a.assignedUser.fullName}" data-confirm-unassign="true">
               <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
               <input type="hidden" name="version" th:value="${a.version}">
               <button type="submit" class="button secondary" style="padding:6px 12px; font-size:12px; color:#dc2626; border-color:#fca5a5;">Unassign</button>
@@ -116,5 +105,6 @@
     <span class="page-links"><a th:if="${assets.hasPrevious()}" th:href="@{/assets(q=${q},status=${selectedStatus},category=${selectedCategory},page=${assets.number - 1},size=${size},sort=${sort},dir=${dir})}">← Previous</a><a th:if="${assets.hasNext()}" th:href="@{/assets(q=${q},status=${selectedStatus},category=${selectedCategory},page=${assets.number + 1},size=${size},sort=${sort},dir=${dir})}">Next →</a></span>
   </div>
 </main>
+<script src="/js/assets-filters.js" defer></script>
 </body>
 </html>
