@@ -14,7 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Turns ticket lifecycle events into in-app notifications for the employee
  * and the assigned technician. The acting user never notifies themselves.
- * Email delivery remains a documented future step (no SMTP dependency yet).
+ * When SMTP is configured (helpdesk.mail.enabled plus a spring.mail host),
+ * every in-app notification also goes out as best-effort email via MailNotifier.
  */
 @Component
 public class NotificationService {
@@ -22,9 +23,11 @@ public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private final TicketNotificationRepository notifications;
+    private final MailNotifier mailNotifier;
 
-    public NotificationService(TicketNotificationRepository notifications) {
+    public NotificationService(TicketNotificationRepository notifications, MailNotifier mailNotifier) {
         this.notifications = notifications;
+        this.mailNotifier = mailNotifier;
     }
 
     @EventListener
@@ -79,6 +82,7 @@ public class NotificationService {
         if (recipient == null || actor == null) return;
         if (recipient.getUsername() != null && recipient.getUsername().equals(actor.getUsername())) return;
         notifications.save(new TicketNotification(ticket, recipient, title, message));
+        mailNotifier.send(recipient, title, message);
     }
 
     private String safeDetails(String details) {

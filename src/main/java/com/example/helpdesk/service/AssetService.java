@@ -36,8 +36,7 @@ public class AssetService {
     }
 
     public Page<Asset> filterPage(String q, AssetStatus status, String category, Pageable pageable) {
-        return repo.findAll(
-                AssetSpecifications.withFilters(clean(q), status, clean(category)), pageable);
+        return repo.findAll(AssetSpecifications.withFilters(clean(q), status, clean(category)), pageable);
     }
 
     public List<String> categories() {
@@ -52,7 +51,8 @@ public class AssetService {
     public Asset create(AssetForm form) {
         validate(form);
         String cleanTag = form.getAssetTag().trim();
-        if (repo.existsByAssetTag(cleanTag)) throw new IllegalArgumentException("Asset tag already exists: " + cleanTag);
+        if (repo.existsByAssetTag(cleanTag))
+            throw new IllegalArgumentException("Asset tag already exists: " + cleanTag);
 
         Asset asset = new Asset();
         form.updateAsset(asset);
@@ -92,7 +92,8 @@ public class AssetService {
         Asset existing = get(id);
         assertExpectedVersion(existing, expectedVersion);
         User user = users.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        if (user.getRole() != Role.EMPLOYEE) throw new IllegalArgumentException("Assets can only be assigned to employees");
+        if (user.getRole() != Role.EMPLOYEE)
+            throw new IllegalArgumentException("Assets can only be assigned to employees");
         if (existing.getStatus() == AssetStatus.RETIRED) {
             throw new IllegalArgumentException("Retired assets cannot be assigned");
         }
@@ -157,9 +158,10 @@ public class AssetService {
         if (asset.getStatus() == AssetStatus.RETIRED) {
             throw new IllegalArgumentException("Retired assets cannot be assigned");
         }
-        User user =
-                users.findById(assignedUserId).orElseThrow(() -> new ResourceNotFoundException("Assigned user not found"));
-        if (user.getRole() != Role.EMPLOYEE) throw new IllegalArgumentException("Assets can only be assigned to employees");
+        User user = users.findById(assignedUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Assigned user not found"));
+        if (user.getRole() != Role.EMPLOYEE)
+            throw new IllegalArgumentException("Assets can only be assigned to employees");
         asset.setAssignedUser(user);
     }
 

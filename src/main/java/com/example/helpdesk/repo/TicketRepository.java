@@ -36,4 +36,6 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     @Query(
             "select count(t) from Ticket t where t.slaDueAt is not null and t.slaDueAt < :now and t.status not in (com.example.helpdesk.model.TicketStatus.RESOLVED, com.example.helpdesk.model.TicketStatus.CLOSED)")
     long countOverdue(@Param("now") LocalDateTime now);
+
+    List<Ticket> findBySlaDueAtBeforeAndSlaBreachNotifiedAtIsNull(LocalDateTime now);
 }

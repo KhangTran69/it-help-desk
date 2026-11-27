@@ -49,8 +49,7 @@ public final class TicketSpecifications {
                     unassigned ? cb.isNull(root.get("technician")) : cb.isNotNull(root.get("technician")));
         }
         if (resolvedClosed) {
-            spec = spec.and((root, cq, cb) ->
-                    root.get("status").in(TicketStatus.RESOLVED, TicketStatus.CLOSED));
+            spec = spec.and((root, cq, cb) -> root.get("status").in(TicketStatus.RESOLVED, TicketStatus.CLOSED));
         }
         if (overdue) {
             spec = spec.and((root, cq, cb) -> cb.and(

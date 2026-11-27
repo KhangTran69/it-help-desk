@@ -28,7 +28,8 @@ class TicketRepositoryQueryTest {
     @Autowired
     private UserRepository userRepository;
 
-    private Ticket newTicket(User reporter, String title, TicketStatus status, LocalDateTime slaDueAt, User technician) {
+    private Ticket newTicket(
+            User reporter, String title, TicketStatus status, LocalDateTime slaDueAt, User technician) {
         Ticket ticket = new Ticket();
         ticket.setTitle(title);
         ticket.setDescription("Query test ticket: " + title);
@@ -45,7 +46,8 @@ class TicketRepositoryQueryTest {
     @Test
     void specificationsWithAllNullsReturnEveryTicket() {
         Page<Ticket> result = ticketRepository.findAll(
-                TicketSpecifications.withFilters(null, null, null, null, null, null, null, false, false, LocalDateTime.now(ZoneOffset.UTC)),
+                TicketSpecifications.withFilters(
+                        null, null, null, null, null, null, null, false, false, LocalDateTime.now(ZoneOffset.UTC)),
                 PageRequest.of(0, 20));
         assertNotNull(result);
         assertTrue(result.getTotalElements() >= 0);
@@ -70,7 +72,8 @@ class TicketRepositoryQueryTest {
         assertEquals(1, byDescription.getTotalElements());
 
         Page<Ticket> byId = ticketRepository.findAll(
-                TicketSpecifications.withFilters(null, null, null, null, null, null, String.valueOf(wifi.getId()), false, false, now),
+                TicketSpecifications.withFilters(
+                        null, null, null, null, null, null, String.valueOf(wifi.getId()), false, false, now),
                 PageRequest.of(0, 20));
         assertEquals(List.of(wifi.getId()), byId.map(Ticket::getId).toList());
     }
@@ -81,10 +84,16 @@ class TicketRepositoryQueryTest {
         LocalDateTime past = LocalDateTime.now(ZoneOffset.UTC).minusHours(2);
         newTicket(reporter, "Overdue active", TicketStatus.OPEN, past, null);
         newTicket(reporter, "Overdue but resolved", TicketStatus.RESOLVED, past, null);
-        newTicket(reporter, "On track", TicketStatus.OPEN, LocalDateTime.now(ZoneOffset.UTC).plusDays(1), null);
+        newTicket(
+                reporter,
+                "On track",
+                TicketStatus.OPEN,
+                LocalDateTime.now(ZoneOffset.UTC).plusDays(1),
+                null);
 
         Page<Ticket> overdue = ticketRepository.findAll(
-                TicketSpecifications.withFilters(null, null, null, null, null, null, null, false, true, LocalDateTime.now(ZoneOffset.UTC)),
+                TicketSpecifications.withFilters(
+                        null, null, null, null, null, null, null, false, true, LocalDateTime.now(ZoneOffset.UTC)),
                 PageRequest.of(0, 20));
         assertEquals(1, overdue.getTotalElements());
         assertEquals("Overdue active", overdue.getContent().get(0).getTitle());
@@ -98,7 +107,8 @@ class TicketRepositoryQueryTest {
         newTicket(reporter, "Open one", TicketStatus.OPEN, null, null);
 
         Page<Ticket> terminal = ticketRepository.findAll(
-                TicketSpecifications.withFilters(null, null, null, null, null, null, null, true, false, LocalDateTime.now(ZoneOffset.UTC)),
+                TicketSpecifications.withFilters(
+                        null, null, null, null, null, null, null, true, false, LocalDateTime.now(ZoneOffset.UTC)),
                 PageRequest.of(0, 20));
         assertEquals(2, terminal.getTotalElements());
     }
@@ -111,13 +121,15 @@ class TicketRepositoryQueryTest {
         newTicket(reporter, "Assigned ticket", TicketStatus.OPEN, null, technician);
 
         Page<Ticket> unassigned = ticketRepository.findAll(
-                TicketSpecifications.withFilters(null, null, null, null, null, true, null, false, false, LocalDateTime.now(ZoneOffset.UTC)),
+                TicketSpecifications.withFilters(
+                        null, null, null, null, null, true, null, false, false, LocalDateTime.now(ZoneOffset.UTC)),
                 PageRequest.of(0, 20));
         assertEquals(1, unassigned.getTotalElements());
         assertEquals("Unassigned ticket", unassigned.getContent().get(0).getTitle());
 
         Page<Ticket> assigned = ticketRepository.findAll(
-                TicketSpecifications.withFilters(null, null, null, null, null, false, null, false, false, LocalDateTime.now(ZoneOffset.UTC)),
+                TicketSpecifications.withFilters(
+                        null, null, null, null, null, false, null, false, false, LocalDateTime.now(ZoneOffset.UTC)),
                 PageRequest.of(0, 20));
         assertEquals(1, assigned.getTotalElements());
         assertEquals("Assigned ticket", assigned.getContent().get(0).getTitle());
@@ -125,7 +137,8 @@ class TicketRepositoryQueryTest {
 
     @Test
     void assetSpecificationsSearchTagNameAndManufacturer() {
-        Page<Asset> all = assetRepository.findAll(AssetSpecifications.withFilters(null, null, null), PageRequest.of(0, 20));
+        Page<Asset> all =
+                assetRepository.findAll(AssetSpecifications.withFilters(null, null, null), PageRequest.of(0, 20));
         assertNotNull(all);
 
         Page<Asset> byTag = assetRepository.findAll(

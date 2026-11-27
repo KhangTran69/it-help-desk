@@ -11,11 +11,18 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtUtil {
 
+    private static final String TYPE_CLAIM = "typ";
+    private static final String ACCESS_TYPE = "access";
+    private static final String REFRESH_TYPE = "refresh";
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
     @Value("${jwt.expiration:86400000}")
     private long jwtExpirationMs;
+
+    @Value("${jwt.refresh-expiration:604800000}")
+    private long jwtRefreshExpirationMs;
 
     @PostConstruct
     void validateSecret() {
@@ -34,10 +41,43 @@ public class JwtUtil {
 
         return Jwts.builder()
                 .subject(username)
+                .claim(TYPE_CLAIM, ACCESS_TYPE)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    /** Longer-lived refresh token; exchanged at /api/auth/refresh for a fresh token pair. */
+    public String generateRefreshToken(String username) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtRefreshExpirationMs);
+
+        return Jwts.builder()
+                .subject(username)
+                .claim(TYPE_CLAIM, REFRESH_TYPE)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public boolean isRefreshToken(String token) {
+        return REFRESH_TYPE.equals(tokenType(token));
+    }
+
+    public String tokenType(String token) {
+        try {
+            Object type = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .get(TYPE_CLAIM);
+            return type == null ? ACCESS_TYPE : type.toString();
+        } catch (JwtException | IllegalArgumentException e) {
+            return "invalid";
+        }
     }
 
     public String getUsernameFromToken(String token) {

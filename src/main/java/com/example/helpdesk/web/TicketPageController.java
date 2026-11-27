@@ -232,7 +232,9 @@ public class TicketPageController {
         if (result.hasErrors()) {
             model.addAttribute("ticket", tickets.get(id));
             populateTicketForm(model);
-            model.addAttribute("allowedStatuses", tickets.allowedNextStatuses(tickets.get(id).getStatus()));
+            model.addAttribute(
+                    "allowedStatuses",
+                    tickets.allowedNextStatuses(tickets.get(id).getStatus()));
             model.addAttribute("technicians", users.findByRole(Role.TECHNICIAN));
             return "ticket-edit";
         }

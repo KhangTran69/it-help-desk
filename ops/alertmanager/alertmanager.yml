@@ -1,0 +1,15 @@
+# Routes Prometheus alerts to Mailpit when the observability stack runs
+# locally. Point the SMTP host at a real provider before any production use.
+route:
+  receiver: alerts-mail
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+receivers:
+  - name: alerts-mail
+    email_configs:
+      - to: ops@it-helpdesk.local
+        from: alertmanager@it-helpdesk.local
+        smarthost: mailpit:1025
+        require_tls: false

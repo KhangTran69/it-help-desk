@@ -23,6 +23,9 @@ class NotificationServiceTest {
     @Mock
     private TicketNotificationRepository notifications;
 
+    @Mock
+    private MailNotifier mailNotifier;
+
     @InjectMocks
     private NotificationService service;
 
@@ -50,6 +53,11 @@ class NotificationServiceTest {
         assertThat(captured.getValue().getMessage())
                 .contains("Password reset request")
                 .contains("RESOLVED");
+        verify(mailNotifier)
+                .send(
+                        reporter,
+                        captured.getValue().getTitle(),
+                        captured.getValue().getMessage());
     }
 
     @Test

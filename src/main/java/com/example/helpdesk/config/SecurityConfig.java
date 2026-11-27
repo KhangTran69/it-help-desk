@@ -97,40 +97,44 @@ public class SecurityConfig {
             HttpSecurity http,
             LoginThrottleFilter throttleFilter,
             LoginAttemptService attempts,
-            com.example.helpdesk.security.EnabledAccountFilter enabledAccountFilter)
+            com.example.helpdesk.security.EnabledAccountFilter enabledAccountFilter,
+            @org.springframework.beans.factory.annotation.Value("${helpdesk.api-docs-public:true}")
+                    boolean apiDocsPublic)
             throws Exception {
         HttpSessionRequestCache requestCache = new HttpSessionRequestCache();
         requestCache.setRequestMatcher(request -> "GET".equals(request.getMethod()));
         return http
                 // All browser state-changing requests, including logout, require CSRF tokens.
-                .authorizeHttpRequests(a -> a.requestMatchers(
-                                "/css/**",
-                                "/login",
-                                "/register",
-                                "/error",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v3/api-docs/**",
-                                "/webjars/**")
-                        .permitAll()
-                        .requestMatchers("/actuator/prometheus")
-                        .access(new WebExpressionAuthorizationManager("hasIpAddress('172.16.0.0/12')"))
-                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info")
-                        .permitAll()
-                        .requestMatchers("/assets", "/assets/**")
-                        .hasRole("TECHNICIAN")
-                        .requestMatchers("/users", "/users/**")
-                        .hasRole("TECHNICIAN")
-                        .requestMatchers("/my-tickets", "/my-tickets/**")
-                        .hasRole("EMPLOYEE")
-                        .requestMatchers(HttpMethod.GET, "/tickets/new")
-                        .authenticated()
-                        .requestMatchers(HttpMethod.POST, "/tickets")
-                        .authenticated()
-                        .requestMatchers("/tickets", "/tickets/**")
-                        .hasRole("TECHNICIAN")
-                        .anyRequest()
-                        .authenticated())
+                .authorizeHttpRequests(a -> {
+                    a.requestMatchers("/css/**", "/login", "/register", "/error", "/webjars/**")
+                            .permitAll();
+                    // API documentation is open in development; the prod profile locks it down.
+                    if (apiDocsPublic) {
+                        a.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
+                                .permitAll();
+                    } else {
+                        a.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
+                                .authenticated();
+                    }
+                    a.requestMatchers("/actuator/prometheus")
+                            .access(new WebExpressionAuthorizationManager("hasIpAddress('172.16.0.0/12')"))
+                            .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info")
+                            .permitAll()
+                            .requestMatchers("/assets", "/assets/**")
+                            .hasRole("TECHNICIAN")
+                            .requestMatchers("/users", "/users/**")
+                            .hasRole("TECHNICIAN")
+                            .requestMatchers("/my-tickets", "/my-tickets/**")
+                            .hasRole("EMPLOYEE")
+                            .requestMatchers(HttpMethod.GET, "/tickets/new")
+                            .authenticated()
+                            .requestMatchers(HttpMethod.POST, "/tickets")
+                            .authenticated()
+                            .requestMatchers("/tickets", "/tickets/**")
+                            .hasRole("TECHNICIAN")
+                            .anyRequest()
+                            .authenticated();
+                })
                 .formLogin(f -> f.loginPage("/login")
                         .successHandler((request, response, authentication) -> {
                             attempts.recordSuccess(authentication.getName(), request.getRemoteAddr());

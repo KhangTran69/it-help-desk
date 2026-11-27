@@ -13,6 +13,10 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@it-helpdesk.local}
+      SPRING_MAIL_HOST: ${MAIL_HOST:-}
+      SPRING_MAIL_PORT: ${MAIL_PORT:-1025}
       HELPDESK_REGISTRATION_ENABLED: ${HELPDESK_REGISTRATION_ENABLED:-false}
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
@@ -55,6 +59,26 @@ services:
     restart: unless-stopped
     networks:
       - helpdesk
+  mailpit:
+    image: axllent/mailpit:v1.24
+    profiles: [mail, observability]
+    ports:
+      - "127.0.0.1:8025:8025"
+    volumes:
+      - helpdesk_mailpit:/data
+    restart: unless-stopped
+    networks:
+      - helpdesk
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    profiles: [observability]
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./ops/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    restart: unless-stopped
+    networks:
+      - helpdesk
   prometheus:
     image: prom/prometheus:v3.5.0
     profiles: [observability]
@@ -90,6 +114,7 @@ volumes:
   helpdesk_redis:
   helpdesk_prometheus:
   helpdesk_grafana:
+  helpdesk_mailpit:
 networks:
   helpdesk:
     driver: bridge

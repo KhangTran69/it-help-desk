@@ -32,9 +32,7 @@ public class NotificationPageController {
                 "isTechnician", authentication.getAuthorities().stream().anyMatch(authority -> "ROLE_TECHNICIAN"
                         .equals(authority.getAuthority())));
         Pageable pageable = PageRequest.of(
-                Math.max(page, 0),
-                Math.max(1, Math.min(size, 50)),
-                Sort.by(Sort.Direction.DESC, "createdAt"));
+                Math.max(page, 0), Math.max(1, Math.min(size, 50)), Sort.by(Sort.Direction.DESC, "createdAt"));
         model.addAttribute(
                 "notifications",
                 notifications.findByRecipientUsernameOrderByCreatedAtDesc(authentication.getName(), pageable));
@@ -57,10 +55,8 @@ public class NotificationPageController {
 
     @PostMapping("/notifications/read-all")
     String markAllRead(Authentication authentication, RedirectAttributes redirect) {
-        int updated = notifications.markAllReadByUsername(authentication.getName());
-        redirect.addFlashAttribute(
-                "success",
-                updated == 1 ? "1 notification marked as read." : updated + " notifications marked as read.");
+        notifications.markAllReadByUsername(authentication.getName());
+        redirect.addFlashAttribute("success", "All notifications marked as read.");
         return "redirect:/notifications";
     }
 }

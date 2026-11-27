@@ -18,10 +18,14 @@ spring:
 jwt:
   secret: ${JWT_SECRET:}
   expiration: ${JWT_EXPIRATION:900000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 server:
   error:
     whitelabel:
       enabled: false
+  # Trust X-Forwarded-* headers from the reverse proxy so redirects and the
+  # login-throttle client address stay correct behind TLS termination.
+  forward-headers-strategy: framework
 management:
   endpoints:
     web:
@@ -30,6 +34,10 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    mail:
+      # Email is best-effort by design; SMTP connectivity must not flip app health.
+      enabled: false
   info:
     env:
       enabled: true
@@ -39,8 +47,15 @@ info:
     description: IT Help Desk and Asset Management System
 helpdesk:
   registration-enabled: ${HELPDESK_REGISTRATION_ENABLED:false}
+  api-docs-public: ${HELPDESK_API_DOCS_PUBLIC:true}
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:no-reply@it-helpdesk.local}
   sla:
     targets:
       low: ${SLA_LOW_SECONDS:1209600}
       medium: ${SLA_MEDIUM_SECONDS:259200}
       high: ${SLA_HIGH_SECONDS:86400}
+    escalation:
+      enabled: ${SLA_ESCALATION_ENABLED:true}
+      sweep-interval-ms: ${SLA_SWEEP_INTERVAL_MS:900000}

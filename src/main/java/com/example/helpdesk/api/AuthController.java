@@ -73,6 +73,43 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/refresh")
+    @Operation(summary = "Exchange a refresh token for a fresh access token pair")
+    public ResponseEntity<?> refresh(@Valid @RequestBody RefreshRequest request) {
+        String refreshToken = request.getRefreshToken();
+        if (!jwtUtil.validateToken(refreshToken) || !jwtUtil.isRefreshToken(refreshToken)) {
+            return ResponseEntity.status(401).body(Map.of("error", "A valid refresh token is required."));
+        }
+        String username = jwtUtil.getUsernameFromToken(refreshToken);
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user == null || !user.isEnabled()) {
+            // Disabled or deleted accounts cannot mint new tokens.
+            return ResponseEntity.status(401).body(Map.of("error", "Account is unavailable."));
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", jwtUtil.generateToken(username));
+        response.put("refreshToken", jwtUtil.generateRefreshToken(username));
+        response.put("type", "Bearer");
+        response.put("username", username);
+        response.put("role", user.getRole().name());
+        response.put("fullName", user.getFullName());
+        return ResponseEntity.ok(response);
+    }
+
+    public static class RefreshRequest {
+        @NotBlank
+        private String refreshToken;
+
+        public String getRefreshToken() {
+            return refreshToken;
+        }
+
+        public void setRefreshToken(String refreshToken) {
+            this.refreshToken = refreshToken;
+        }
+    }
+
     public static class LoginRequest {
         @NotBlank
         @Size(max = 80)

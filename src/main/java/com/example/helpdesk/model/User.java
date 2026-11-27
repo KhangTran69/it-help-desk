@@ -27,6 +27,9 @@ public class User {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    @Column(length = 160)
+    private String email;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now(ZoneOffset.UTC);
 
@@ -77,6 +80,14 @@ public class User {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public boolean isEnabled() {

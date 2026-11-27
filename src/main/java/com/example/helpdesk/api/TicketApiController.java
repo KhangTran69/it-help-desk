@@ -66,7 +66,8 @@ public class TicketApiController {
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "Sort field") @RequestParam(defaultValue = "updatedAt") String sortBy,
             @Parameter(description = "Sort direction") @RequestParam(defaultValue = "desc") String sortDir,
-            @Parameter(description = "Free-text search over title, description, and ticket id") @RequestParam(required = false)
+            @Parameter(description = "Free-text search over title, description, and ticket id")
+                    @RequestParam(required = false)
                     String q,
             @RequestParam(required = false) TicketStatus status,
             @RequestParam(required = false) Priority priority,
@@ -79,8 +80,8 @@ public class TicketApiController {
                     boolean overdue) {
 
         Pageable pageable = apiPageable(page, size, sortBy, sortDir);
-        Page<Ticket> tickets =
-                ticketService.searchPage(status, priority, category, technicianId, unassigned, q, false, overdue, pageable);
+        Page<Ticket> tickets = ticketService.searchPage(
+                status, priority, category, technicianId, unassigned, q, false, overdue, pageable);
         return ResponseEntity.ok(toPageResponse(tickets));
     }
 
@@ -229,7 +230,8 @@ public class TicketApiController {
         Page<TicketComment> visible = isTechnician(authentication)
                 ? ticketService.allComments(id, commentPageable(page, size))
                 : ticketService.publicComments(id, authentication.getName(), commentPageable(page, size));
-        List<TicketCommentDto> dtos = visible.getContent().stream().map(this::toCommentDto).toList();
+        List<TicketCommentDto> dtos =
+                visible.getContent().stream().map(this::toCommentDto).toList();
         return ResponseEntity.ok(new PageResponse<>(
                 dtos, visible.getNumber(), visible.getTotalPages(), visible.getTotalElements(), visible.getSize()));
     }
@@ -327,7 +329,8 @@ public class TicketApiController {
         dto.setCreatedAt(ticket.getCreatedAt().atOffset(ZoneOffset.UTC));
         dto.setUpdatedAt(ticket.getUpdatedAt().atOffset(ZoneOffset.UTC));
         dto.setVersion(ticket.getVersion());
-        dto.setSlaDueAt(ticket.getSlaDueAt() == null ? null : ticket.getSlaDueAt().atOffset(ZoneOffset.UTC));
+        dto.setSlaDueAt(
+                ticket.getSlaDueAt() == null ? null : ticket.getSlaDueAt().atOffset(ZoneOffset.UTC));
         dto.setSlaOverdue(ticket.isSlaOverdue());
         if (ticket.getReporter() != null) {
             dto.setReporterName(ticket.getReporter().getFullName());

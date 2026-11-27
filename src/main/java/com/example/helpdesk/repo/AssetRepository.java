@@ -1,7 +1,6 @@
 package com.example.helpdesk.repo;
 
 import com.example.helpdesk.model.Asset;
-import com.example.helpdesk.model.AssetStatus;
 import com.example.helpdesk.model.User;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;

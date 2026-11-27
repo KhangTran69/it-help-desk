@@ -158,8 +158,7 @@ class AssetServiceTest {
         AssetForm form = form("AST-OLD", "Old laptop", "Laptop", AssetStatus.AVAILABLE);
         form.setVersion(2L);
 
-        assertThrows(
-                com.example.helpdesk.exception.AssetEditConflictException.class, () -> service.update(10L, form));
+        assertThrows(com.example.helpdesk.exception.AssetEditConflictException.class, () -> service.update(10L, form));
         verify(repo, never()).save(any(Asset.class));
     }
 
@@ -173,8 +172,7 @@ class AssetServiceTest {
 
         AssetForm form = form("AST-OLD", "Old laptop", "Laptop", AssetStatus.AVAILABLE);
 
-        assertThrows(
-                com.example.helpdesk.exception.AssetEditConflictException.class, () -> service.update(10L, form));
+        assertThrows(com.example.helpdesk.exception.AssetEditConflictException.class, () -> service.update(10L, form));
         verify(repo, never()).save(any(Asset.class));
     }
 
@@ -256,8 +254,7 @@ class AssetServiceTest {
 
     @Test
     void createCountsCreationMetricWhenRepositoryAssignsIdImmediately() {
-        com.example.helpdesk.metrics.BusinessMetrics metrics =
-                mock(com.example.helpdesk.metrics.BusinessMetrics.class);
+        com.example.helpdesk.metrics.BusinessMetrics metrics = mock(com.example.helpdesk.metrics.BusinessMetrics.class);
         AssetService measuredService = new AssetService(repo, users, metrics);
 
         when(repo.existsByAssetTag("AST-METRIC")).thenReturn(false);
@@ -282,8 +279,7 @@ class AssetServiceTest {
         when(repo.findById(40L)).thenReturn(Optional.of(existing));
 
         assertThrows(
-                com.example.helpdesk.exception.AssetEditConflictException.class,
-                () -> service.assign(40L, 101L, null));
+                com.example.helpdesk.exception.AssetEditConflictException.class, () -> service.assign(40L, 101L, null));
         verify(repo, never()).save(any(Asset.class));
     }
 }
