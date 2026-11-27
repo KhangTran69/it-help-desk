@@ -57,10 +57,8 @@ public class NotificationPageController {
 
     @PostMapping("/notifications/read-all")
     String markAllRead(Authentication authentication, RedirectAttributes redirect) {
-        int updated = notifications.markAllReadByUsername(authentication.getName());
-        redirect.addFlashAttribute(
-                "success",
-                updated == 1 ? "1 notification marked as read." : updated + " notifications marked as read.");
+        notifications.markAllReadByUsername(authentication.getName());
+        redirect.addFlashAttribute("success", "All notifications marked as read.");
         return "redirect:/notifications";
     }
 }
