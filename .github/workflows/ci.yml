@@ -18,7 +18,7 @@ jobs:
       JWT_SECRET: ci-only-jwt-signing-secret-at-least-32-bytes
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
